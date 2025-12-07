@@ -59,9 +59,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: 'docs/package.json'
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -71,11 +74,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./docs
-        run: npm ci
+        run: bun install
 
       - name: Build with VitePress
         working-directory: ./docs
-        run: npm run docs:build
+        run: bun run docs:build
 
       - name: Check build output
         run: |
