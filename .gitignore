@@ -1,0 +1,16 @@
+# Zig
+zig-cache/
+zig-out/
+build/
+*.o
+*.obj
+
+# VitePress / Node
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+.DS_Store
+dist/
+coverage/
+*.num
+.zig-cache

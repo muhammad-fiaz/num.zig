@@ -1,0 +1,16 @@
+.{
+    .name = .num_demo,
+    .version = "0.0.1",
+    .fingerprint = 0x5cdb49617137be96,
+    .dependencies = .{
+        .num = .{
+            .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/heads/main.tar.gz",
+            .hash = "...", // Run `zig fetch --save <url>` to update the hash
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

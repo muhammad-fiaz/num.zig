@@ -1,0 +1,88 @@
+name: Deploy VitePress site to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Run Zig tests
+        run: zig build test --summary all
+
+      - name: Build Zig examples
+        run: |
+          zig build example-basics
+          zig build example-advanced
+          zig build example-linalg
+          zig build example-stats
+          zig build example-ml
+
+      - name: Zig format check
+        run: zig fmt --check src/ examples/
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Clean npm state
+        working-directory: ./docs
+        run: |
+          rm -f package-lock.json
+          rm -rf node_modules
+
+      - name: Install dependencies
+        working-directory: ./docs
+        run: npm install
+
+      - name: Build with VitePress
+        working-directory: ./docs
+        run: npm run docs:build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Deploy
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

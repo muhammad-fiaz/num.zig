@@ -1,0 +1,13 @@
+{
+  "name": "num.zig",
+  "version": "0.1.0",
+  "description": "A fast, high-performance numerical computing library for Zig.",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.0.0"
+  }
+}

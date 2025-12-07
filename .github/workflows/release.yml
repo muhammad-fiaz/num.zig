@@ -1,0 +1,157 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+      - name: Run Tests
+        run: zig build test
+
+  build-library:
+    name: Build Library (${{ matrix.target }})
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-windows
+          - x86-windows
+          - x86_64-linux
+          - x86-linux
+          - aarch64-linux
+          - x86_64-macos
+          - aarch64-macos
+          - x86_64-freestanding
+          - aarch64-freestanding
+          - riscv64-freestanding
+          - arm-freestanding
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Build Library
+        run: zig build -Doptimize=ReleaseSafe -Dtarget=${{ matrix.target }}
+
+      - name: Rename Artifact (Windows)
+        if: contains(matrix.target, 'windows')
+        run: mv zig-out/lib/num.lib num-${{ matrix.target }}.lib
+
+      - name: Rename Artifact (Unix)
+        if: contains(matrix.target, 'windows') == false
+        run: mv zig-out/lib/libnum.a libnum-${{ matrix.target }}.a
+
+      - name: Upload Artifact
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          if [[ "$TARGET" == *windows* ]]; then
+            ARTIFACT="num-${TARGET}.lib"
+          else
+            ARTIFACT="libnum-${TARGET}.a"
+          fi
+          gh release upload "$TAG" "$ARTIFACT"
+
+  update-release:
+    name: Update Release Description
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Get Release URL
+        id: get_url
+        run: echo "url=https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.tar.gz" >> $GITHUB_OUTPUT
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Calculate Hash
+        id: calc_hash
+        run: |
+          zig fetch --save ${{ steps.get_url.outputs.url }}
+          HASH=$(grep '.hash =' build.zig.zon | cut -d '"' -f 2)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Update Release Body
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ${{ github.event.release.body }}
+
+            ### Option A — Automatic (Recommended)
+
+            Run this to install the dependency and automatically save the hash:
+
+            ```bash
+            zig fetch --save https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.tar.gz
+            ```
+
+            After running, Zig updates your `build.zig.zon` with something like:
+
+            ```zig
+            .dependencies = .{
+                .num = .{
+                    .url = "https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.tar.gz",
+                    .hash = "${{ steps.calc_hash.outputs.hash }}",
+                },
+            },
+            ```
+
+            ### Option B — Manual
+
+            ```bash
+            zig fetch --hash https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.event.release.tag_name }}.tar.gz
+            ```
+
+            Copy that hash into:
+
+            ```zig
+            .hash = "<your_hash_here>"
+            ```
+
+            ## 📥 Downloads (Prebuilt Library)
+
+            | Platform | Architecture | File |
+            |----------|--------------|------|
+            | Windows | x86_64 | [num-x86_64-windows.lib](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/num-x86_64-windows.lib) |
+            | Windows | x86 | [num-x86-windows.lib](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/num-x86-windows.lib) |
+            | Linux | x86_64 | [libnum-x86_64-linux.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-x86_64-linux.a) |
+            | Linux | x86 | [libnum-x86-linux.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-x86-linux.a) |
+            | Linux | aarch64 (ARM64) | [libnum-aarch64-linux.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-aarch64-linux.a) |
+            | macOS | x86_64 (Intel) | [libnum-x86_64-macos.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-x86_64-macos.a) |
+            | macOS | aarch64 (Apple Silicon) | [libnum-aarch64-macos.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-aarch64-macos.a) |
+            | Bare Metal | x86_64 | [libnum-x86_64-freestanding.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-x86_64-freestanding.a) |
+            | Bare Metal | aarch64 | [libnum-aarch64-freestanding.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-aarch64-freestanding.a) |
+            | Bare Metal | RISC-V 64 | [libnum-riscv64-freestanding.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-riscv64-freestanding.a) |
+            | Bare Metal | ARM | [libnum-arm-freestanding.a](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/libnum-arm-freestanding.a) |
+
+            ### 🛠️ Using Prebuilt Libraries
+
+            1. Download the library for your platform.
+            2. Place it in your project (e.g., in a `libs/` folder).
+            3. Update your `build.zig`:
+
+            ```zig
+            exe.addLibraryPath(b.path("libs"));
+            exe.linkSystemLibrary("num");
+            ```
