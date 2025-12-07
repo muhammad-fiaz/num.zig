@@ -29,6 +29,8 @@
 
 A production-grade, high-performance numerical computing library for Zig, designed with a clean, intuitive, and developer-friendly API similar to NumPy.
 
+> Note: This Project is Still in Development!
+
 ---
 
 <details>
