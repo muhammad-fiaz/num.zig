@@ -8,7 +8,7 @@
 <a href="https://github.com/muhammad-fiaz/num.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/num.zig" alt="GitHub pull requests"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig"><img src="https://img.shields.io/github/last-commit/muhammad-fiaz/num.zig" alt="GitHub last commit"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig"><img src="https://img.shields.io/github/license/muhammad-fiaz/num.zig" alt="License"></a>
-<a href="https://github.com/muhammad-fiaz/num.zig/actions/workflows/ci.yml"><img src="https://github.com/muhammad-fiaz/num.zig/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/muhammad-fiaz/num.zig/actions/workflows/deploy.yml"><img src="https://github.com/muhammad-fiaz/num.zig/actions/workflows/deploy.yml/badge.svg" alt="Deploy VitePress site to Pages" /></a>
 <img src="https://img.shields.io/badge/platforms-linux%20%7C%20windows%20%7C%20macos-blue" alt="Supported Platforms">
 <a href="https://github.com/muhammad-fiaz/num.zig/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/muhammad-fiaz/num.zig/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig/actions/workflows/release.yml"><img src="https://github.com/muhammad-fiaz/num.zig/actions/workflows/release.yml/badge.svg" alt="Release"></a>
