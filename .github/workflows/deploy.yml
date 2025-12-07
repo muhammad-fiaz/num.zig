@@ -59,7 +59,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'docs/package.json'
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -67,19 +69,24 @@ jobs:
           enablement: true
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Clean npm state
-        working-directory: ./docs
-        run: |
-          rm -f package-lock.json
-          rm -rf node_modules
-
       - name: Install dependencies
         working-directory: ./docs
-        run: npm install
+        run: npm ci
 
       - name: Build with VitePress
         working-directory: ./docs
         run: npm run docs:build
+
+      - name: Check build output
+        run: |
+          if [ -d "docs/.vitepress/dist" ]; then
+            echo "Build successful"
+            ls -la docs/.vitepress/dist
+          else
+            echo "Build failed - dist directory not found"
+            ls -la docs/.vitepress/
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
