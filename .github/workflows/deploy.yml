@@ -63,6 +63,9 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true
+          token: ${{ secrets.GH_TOKEN }}
 
       - name: Clean npm state
         working-directory: ./docs
@@ -96,3 +99,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
