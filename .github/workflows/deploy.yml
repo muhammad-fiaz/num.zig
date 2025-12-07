@@ -38,10 +38,20 @@ jobs:
       - name: Build Zig examples
         run: |
           zig build example-basics
-          zig build example-advanced
+          zig build example-manipulation
+          zig build example-math
           zig build example-linalg
-          zig build example-stats
+          zig build example-random
           zig build example-ml
+          zig build example-fft
+          zig build example-indexing
+          zig build example-signal_poly
+          zig build example-setops
+          zig build example-complex
+          zig build example-advanced_manipulation
+          zig build example-algorithms
+          zig build example-csv_linalg_masking
+          zig build example-comprehensive
 
       - name: Zig format check
         run: zig fmt --check src/ examples/
