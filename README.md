@@ -1,4 +1,5 @@
 <div align="center">
+<img alt="Logo" src="https://github.com/user-attachments/assets/a6e08aa0-61ac-4246-b574-af6097ae1b81" />
 
 
 <a href="https://muhammad-fiaz.github.io/num.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
