@@ -9,7 +9,7 @@ pub fn main() !void {
     std.debug.print("=== Set Operations Example ===\n\n", .{});
 
     var a = try num.NDArray(i32).init(allocator, &.{6});
-    defer a.deinit();
+    defer a.deinit(allocator);
     // [1, 2, 3, 2, 1, 4]
     try a.set(&.{0}, 1);
     try a.set(&.{1}, 2);
@@ -20,7 +20,7 @@ pub fn main() !void {
 
     // Unique
     var u = try num.setops.unique(allocator, i32, a);
-    defer u.deinit();
+    defer u.deinit(allocator);
 
     std.debug.print("Original: [1, 2, 3, 2, 1, 4]\n", .{});
     std.debug.print("Unique: ", .{});
@@ -31,14 +31,14 @@ pub fn main() !void {
 
     // In1d
     var b = try num.NDArray(i32).init(allocator, &.{3});
-    defer b.deinit();
+    defer b.deinit(allocator);
     // [2, 4, 5]
     try b.set(&.{0}, 2);
     try b.set(&.{1}, 4);
     try b.set(&.{2}, 5);
 
     var mask = try num.setops.in1d(allocator, i32, a, b);
-    defer mask.deinit();
+    defer mask.deinit(allocator);
 
     std.debug.print("Test elements in [2, 4, 5]: ", .{});
     for (0..mask.size()) |i| {

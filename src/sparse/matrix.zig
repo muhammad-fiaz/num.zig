@@ -8,14 +8,13 @@ pub fn CSRMatrix(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
-        values: std.ArrayList(T),
-        col_indices: std.ArrayList(usize),
-        row_ptr: std.ArrayList(usize),
+        values: std.ArrayListUnmanaged(T),
+        col_indices: std.ArrayListUnmanaged(usize),
+        row_ptr: std.ArrayListUnmanaged(usize),
         shape: [2]usize,
 
         pub fn init(allocator: Allocator, rows: usize, cols: usize) !Self {
-            var row_ptr = std.ArrayList(usize){};
+            var row_ptr = std.ArrayListUnmanaged(usize){};
             errdefer row_ptr.deinit(allocator);
 
             try row_ptr.ensureTotalCapacity(allocator, rows + 1);
@@ -27,18 +26,17 @@ pub fn CSRMatrix(comptime T: type) type {
             }
 
             return Self{
-                .allocator = allocator,
-                .values = std.ArrayList(T){},
-                .col_indices = std.ArrayList(usize){},
+                .values = std.ArrayListUnmanaged(T){},
+                .col_indices = std.ArrayListUnmanaged(usize){},
                 .row_ptr = row_ptr,
                 .shape = .{ rows, cols },
             };
         }
 
-        pub fn deinit(self: *Self) void {
-            self.values.deinit(self.allocator);
-            self.col_indices.deinit(self.allocator);
-            self.row_ptr.deinit(self.allocator);
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.values.deinit(allocator);
+            self.col_indices.deinit(allocator);
+            self.row_ptr.deinit(allocator);
         }
 
         /// Converts a dense NDArray to CSR format.
@@ -48,7 +46,7 @@ pub fn CSRMatrix(comptime T: type) type {
             const cols = arr.shape[1];
 
             var csr = try Self.init(allocator, rows, cols);
-            errdefer csr.deinit();
+            errdefer csr.deinit(allocator);
 
             // Reset row_ptr to just [0]
             csr.row_ptr.clearRetainingCapacity();
@@ -70,8 +68,8 @@ pub fn CSRMatrix(comptime T: type) type {
         }
 
         /// Converts CSR to dense NDArray.
-        pub fn toDense(self: Self) !NDArray(T) {
-            var arr = try NDArray(T).zeros(self.allocator, &self.shape);
+        pub fn toDense(self: Self, allocator: Allocator) !NDArray(T) {
+            var arr = try NDArray(T).zeros(allocator, &self.shape);
 
             for (0..self.shape[0]) |i| {
                 const start = self.row_ptr.items[i];
@@ -85,4 +83,30 @@ pub fn CSRMatrix(comptime T: type) type {
             return arr;
         }
     };
+}
+
+test "sparse csr matrix" {
+    const allocator = std.testing.allocator;
+    var dense = try NDArray(f32).init(allocator, &.{ 3, 3 });
+    defer dense.deinit(allocator);
+    dense.fill(0);
+    try dense.set(&.{ 0, 0 }, 1.0);
+    try dense.set(&.{ 1, 1 }, 2.0);
+    try dense.set(&.{ 2, 2 }, 3.0);
+
+    var csr = try CSRMatrix(f32).fromDense(allocator, dense);
+    defer csr.deinit(allocator);
+
+    try std.testing.expectEqual(csr.values.items.len, 3);
+    try std.testing.expectEqual(csr.values.items[0], 1.0);
+    try std.testing.expectEqual(csr.values.items[1], 2.0);
+    try std.testing.expectEqual(csr.values.items[2], 3.0);
+
+    var dense2 = try csr.toDense(allocator);
+    defer dense2.deinit(allocator);
+
+    try std.testing.expectEqual(try dense2.get(&.{ 0, 0 }), 1.0);
+    try std.testing.expectEqual(try dense2.get(&.{ 1, 1 }), 2.0);
+    try std.testing.expectEqual(try dense2.get(&.{ 2, 2 }), 3.0);
+    try std.testing.expectEqual(try dense2.get(&.{ 0, 1 }), 0.0);
 }

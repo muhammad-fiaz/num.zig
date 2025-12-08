@@ -1,48 +1,39 @@
-# Machine Learning
+# Machine Learning API Reference
 
-The `ml` module provides building blocks for neural networks.
+## Models
 
-## Activations
+### `Sequential`
 
-### `relu`
+A sequential container for neural network layers.
 
-Computes the Rectified Linear Unit (ReLU) activation.
+#### `init(allocator: Allocator) Sequential`
+Initializes a new empty Sequential model.
 
-```zig
-pub fn relu(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32)
-```
+#### `deinit(self: *Sequential, allocator: Allocator) void`
+Deinitializes the model and frees all associated memory.
 
-### `sigmoid`
+#### `add(self: *Sequential, allocator: Allocator, layer: Layer) !void`
+Adds a layer to the end of the model.
 
-Computes the Sigmoid activation.
+#### `forward(self: *Sequential, allocator: Allocator, input: *Tensor(f32)) !*Tensor(f32)`
+Performs a forward pass through all layers in the model.
 
-```zig
-pub fn sigmoid(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32)
-```
+#### `fit(self: *Sequential, allocator: Allocator, x_train: *Tensor(f32), y_train: *Tensor(f32), optimizer: anytype, loss_fn: anytype, epochs: usize) !void`
+Trains the model for a fixed number of epochs.
+- **optimizer**: An optimizer instance (e.g., `SGD`) with an `update` method.
+- **loss_fn**: A function that takes `(allocator, prediction, target)` and returns a loss Tensor.
 
-## Initialization Methods
+#### `train(self: *Sequential) void`
+Sets the model and all its layers to training mode.
 
-The `InitMethod` enum defines strategies for initializing neural network weights.
+#### `eval(self: *Sequential) void`
+Sets the model and all its layers to evaluation mode.
 
-```zig
-pub const InitMethod = enum {
-    RandomUniform,
-    XavierUniform,
-    HeNormal,
-};
-```
+#### `save(self: *Sequential, allocator: Allocator, path: []const u8) !void`
+Saves the model architecture and weights to a binary file.
 
-### `RandomUniform`
-
-Initializes weights with a uniform distribution in the range `[-0.01, 0.01]`.
-
-### `XavierUniform`
-
-Initializes weights with a uniform distribution within a limit calculated as `sqrt(6 / (in + out))`. This is often used with Sigmoid or Tanh activation functions.
-
-### `HeNormal`
-
-Initializes weights with a normal distribution with a standard deviation of `sqrt(2 / in)`. This is often used with ReLU activation functions.
+#### `load(allocator: Allocator, path: []const u8) !Sequential`
+Loads a model from a binary file.
 
 ## Layers
 
@@ -50,69 +41,29 @@ Initializes weights with a normal distribution with a standard deviation of `sqr
 
 A fully connected layer.
 
-#### `init`
+#### `init(allocator: Allocator, input_dim: usize, output_dim: usize, init_method: InitMethod) !Dense`
+Initializes a dense layer.
+- **init_method**: `.RandomUniform`, `.XavierUniform`, or `.HeNormal`.
 
-```zig
-pub fn init(allocator: Allocator, input_dim: usize, output_dim: usize, init_method: InitMethod) !Dense
-```
+### `Layer` (Union)
 
-#### `forward`
+A tagged union representing any supported layer type.
 
-```zig
-pub fn forward(self: *Dense, allocator: Allocator, input: *const NDArray(f32)) !NDArray(f32)
-```
-
-## Loss Functions
-
-### `mse`
-
-Mean Squared Error.
-
-```zig
-pub fn mse(allocator: Allocator, y_true: *const NDArray(f32), y_pred: *const NDArray(f32)) !f32
-```
-
-### `categoricalCrossEntropy`
-
-Categorical Cross-Entropy loss.
-
-```zig
-pub fn categoricalCrossEntropy(allocator: Allocator, y_true: *const NDArray(f32), y_pred: *const NDArray(f32)) !f32
-```
+- `.Dense`: `Dense` struct.
+- `.ReLU`: `void`.
+- `.Sigmoid`: `void`.
+- `.Tanh`: `void`.
+- `.Softmax`: `void`.
+- `.Dropout`: `Dropout` struct.
 
 ## Optimizers
 
 ### `SGD`
 
-Stochastic Gradient Descent.
+Stochastic Gradient Descent optimizer.
 
-```zig
-pub fn init(lr: f32) SGD
-pub fn update(self: SGD, param: *NDArray(f32), grad: *const NDArray(f32)) void
-```
+#### `init(lr: f32) SGD`
+Initializes SGD with a learning rate.
 
-## Example
-
-```zig
-const std = @import("std");
-const num = @import("num");
-const Dense = num.ml.layers.Dense;
-const SGD = num.ml.optim.SGD;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    // Layer
-    var layer = try Dense.init(allocator, 10, 5, .XavierUniform);
-    defer layer.deinit();
-
-    // Optimizer
-    var opt = SGD.init(0.01);
-
-    // Forward pass (dummy input)
-    var input = try num.NDArray(f32).zeros(allocator, &.{1, 10});
-    var output = try layer.forward(allocator, &input);
-    defer output.deinit();
-}
-```
+#### `update(self: *SGD, param: *Tensor(f32)) void`
+Updates a parameter tensor using its gradient.

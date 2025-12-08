@@ -14,3 +14,4 @@ dist/
 coverage/
 *.num
 .zig-cache
+*.bin

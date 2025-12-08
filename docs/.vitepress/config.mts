@@ -49,6 +49,7 @@ export default defineConfig({
           { text: 'Complex Numbers', link: '/api/complex' },
           { text: 'Set Operations', link: '/api/setops' },
           { text: 'Sorting', link: '/api/sort' },
+          { text: 'Algorithms', link: '/api/algo' },
           { text: 'Interpolation', link: '/api/interpolate' },
           { text: 'Sparse Matrices', link: '/api/sparse' },
           { text: 'Autograd', link: '/api/autograd' },

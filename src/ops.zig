@@ -15,7 +15,7 @@ fn elementwise(
     defer allocator.free(out_shape);
 
     var result = try NDArray(T).init(allocator, out_shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     const total_elements = result.size();
     const rank = result.rank();
@@ -134,12 +134,12 @@ fn neg_op(val: anytype) @TypeOf(val) {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{1.0, 2.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 /// var b = try NDArray(f32).init(allocator, &.{2}, &.{3.0, 4.0});
-/// defer b.deinit();
+/// defer b.deinit(allocator);
 ///
 /// var result = try ops.add(f32, allocator, &a, &b);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {4.0, 6.0}
 /// ```
 pub fn add(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
@@ -162,12 +162,12 @@ pub fn add(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *con
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{5.0, 7.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 /// var b = try NDArray(f32).init(allocator, &.{2}, &.{2.0, 3.0});
-/// defer b.deinit();
+/// defer b.deinit(allocator);
 ///
 /// var result = try ops.sub(f32, allocator, &a, &b);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {3.0, 4.0}
 /// ```
 pub fn sub(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
@@ -190,12 +190,12 @@ pub fn sub(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *con
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{2.0, 3.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 /// var b = try NDArray(f32).init(allocator, &.{2}, &.{4.0, 5.0});
-/// defer b.deinit();
+/// defer b.deinit(allocator);
 ///
 /// var result = try ops.mul(f32, allocator, &a, &b);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {8.0, 15.0}
 /// ```
 pub fn mul(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
@@ -218,12 +218,12 @@ pub fn mul(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *con
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{10.0, 20.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 /// var b = try NDArray(f32).init(allocator, &.{2}, &.{2.0, 4.0});
-/// defer b.deinit();
+/// defer b.deinit(allocator);
 ///
 /// var result = try ops.div(f32, allocator, &a, &b);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {5.0, 5.0}
 /// ```
 pub fn div(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
@@ -246,12 +246,12 @@ pub fn div(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *con
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{2.0, 3.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 /// var b = try NDArray(f32).init(allocator, &.{2}, &.{3.0, 2.0});
-/// defer b.deinit();
+/// defer b.deinit(allocator);
 ///
 /// var result = try ops.pow(f32, allocator, &a, &b);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {8.0, 9.0}
 /// ```
 pub fn pow(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
@@ -273,10 +273,10 @@ pub fn pow(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *con
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{0.0, 1.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.exp(f32, allocator, &a);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {1.0, 2.718...}
 /// ```
 pub fn exp(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
@@ -298,10 +298,10 @@ pub fn exp(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArra
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{1.0, 2.71828});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.log(f32, allocator, &a);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {0.0, 1.0}
 /// ```
 pub fn log(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
@@ -323,10 +323,10 @@ pub fn log(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArra
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{4.0, 9.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.sqrt(f32, allocator, &a);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {2.0, 3.0}
 /// ```
 pub fn sqrt(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
@@ -348,10 +348,10 @@ pub fn sqrt(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArr
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{ -1.0, 2.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.abs(f32, allocator, &a);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {1.0, 2.0}
 /// ```
 pub fn abs(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
@@ -373,10 +373,10 @@ pub fn abs(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArra
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{1.0, -2.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.neg(f32, allocator, &a);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {-1.0, 2.0}
 /// ```
 pub fn neg(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
@@ -400,10 +400,10 @@ pub fn neg(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArra
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{0.0, 5.0, 10.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var result = try ops.clip(f32, allocator, &a, 2.0, 8.0);
-/// defer result.deinit();
+/// defer result.deinit(allocator);
 /// // result is {2.0, 5.0, 8.0}
 /// ```
 pub fn clip(comptime T: type, allocator: Allocator, a: *const NDArray(T), min_val: T, max_val: T) !NDArray(T) {
@@ -418,4 +418,45 @@ pub fn clip(comptime T: type, allocator: Allocator, a: *const NDArray(T), min_va
         }
     }
     return result;
+}
+
+test "ops arithmetic" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{2});
+    defer a.deinit(allocator);
+    a.fill(2.0);
+    var b = try NDArray(f32).init(allocator, &.{2});
+    defer b.deinit(allocator);
+    b.fill(3.0);
+
+    var s = try add(f32, allocator, &a, &b);
+    defer s.deinit(allocator);
+    try std.testing.expectEqual(try s.get(&.{0}), 5.0);
+
+    var d = try sub(f32, allocator, &a, &b);
+    defer d.deinit(allocator);
+    try std.testing.expectEqual(try d.get(&.{0}), -1.0);
+
+    var m = try mul(f32, allocator, &a, &b);
+    defer m.deinit(allocator);
+    try std.testing.expectEqual(try m.get(&.{0}), 6.0);
+
+    var div_res = try div(f32, allocator, &a, &b);
+    defer div_res.deinit(allocator);
+    try std.testing.expectApproxEqAbs(try div_res.get(&.{0}), 0.6666, 1e-4);
+}
+
+test "ops unary" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{2});
+    defer a.deinit(allocator);
+    a.fill(2.0);
+
+    var n = try neg(f32, allocator, &a);
+    defer n.deinit(allocator);
+    try std.testing.expectEqual(try n.get(&.{0}), -2.0);
+
+    var c = try clip(f32, allocator, &a, 0.0, 1.0);
+    defer c.deinit(allocator);
+    try std.testing.expectEqual(try c.get(&.{0}), 1.0);
 }

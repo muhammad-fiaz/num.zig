@@ -18,14 +18,14 @@ pub fn polyval(allocator: Allocator, comptime T: type, p: NDArray(T), x: NDArray
     if (p.rank() != 1) return core.Error.RankMismatch;
 
     var result = try NDArray(T).init(allocator, x.shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     // Horner's method
     // p[0]*x^N + p[1]*x^(N-1) + ... + p[N]
 
     // Iterate over x
     var iter = try core.NdIterator.init(allocator, x.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         const val_x = try x.get(coords);
@@ -114,7 +114,7 @@ pub fn roots(allocator: Allocator, comptime T: type, p: NDArray(T)) !NDArray(T) 
 
     const dim = n - 1;
     var companion = try NDArray(T).zeros(allocator, &.{ dim, dim });
-    defer companion.deinit();
+    defer companion.deinit(allocator);
 
     // Fill sub-diagonal with 1s
     for (1..dim) |i| {
@@ -147,7 +147,7 @@ pub fn polyder(allocator: Allocator, comptime T: type, p: NDArray(T), m: usize) 
     for (0..m) |_| {
         const current_n = result.size();
         if (current_n <= 1) {
-            result.deinit();
+            result.deinit(allocator);
             result = try NDArray(T).zeros(allocator, &.{1});
             break;
         }
@@ -157,7 +157,7 @@ pub fn polyder(allocator: Allocator, comptime T: type, p: NDArray(T), m: usize) 
             const power = @as(T, @floatFromInt(current_n - 1 - i));
             new_coeffs.data[i] = result.data[i] * power;
         }
-        result.deinit();
+        result.deinit(allocator);
         result = new_coeffs;
     }
 
@@ -181,9 +181,73 @@ pub fn polyint(allocator: Allocator, comptime T: type, p: NDArray(T), m: usize, 
         new_coeffs.data[current_n] = k; // Constant of integration (applied at each step? usually just once at end or 0s. NumPy does 0s usually unless k specified)
         // Here we apply k at the last position. If m > 1, subsequent integrals will integrate this k.
 
-        result.deinit();
+        result.deinit(allocator);
         result = new_coeffs;
     }
 
     return result;
+}
+
+test "poly val" {
+    const allocator = std.testing.allocator;
+    var p = try NDArray(f32).init(allocator, &.{3});
+    defer p.deinit(allocator);
+    // 3x^2 + 2x + 1
+    p.data[0] = 3.0;
+    p.data[1] = 2.0;
+    p.data[2] = 1.0;
+
+    var x = try NDArray(f32).init(allocator, &.{1});
+    defer x.deinit(allocator);
+    x.data[0] = 2.0;
+
+    var res = try polyval(allocator, f32, p, x);
+    defer res.deinit(allocator);
+
+    // 3*4 + 2*2 + 1 = 12 + 4 + 1 = 17
+    try std.testing.expectEqual(try res.get(&.{0}), 17.0);
+}
+
+test "poly add" {
+    const allocator = std.testing.allocator;
+    var p1 = try NDArray(f32).init(allocator, &.{2});
+    defer p1.deinit(allocator);
+    p1.fill(1.0); // x + 1
+    var p2 = try NDArray(f32).init(allocator, &.{3});
+    defer p2.deinit(allocator);
+    p2.fill(2.0); // 2x^2 + 2x + 2
+
+    var res = try polyadd(allocator, f32, p1, p2);
+    defer res.deinit(allocator);
+
+    // 2x^2 + 3x + 3
+    try std.testing.expectEqual(res.size(), 3);
+    try std.testing.expectEqual(res.data[0], 2.0);
+    try std.testing.expectEqual(res.data[1], 3.0);
+    try std.testing.expectEqual(res.data[2], 3.0);
+}
+
+test "poly der int" {
+    const allocator = std.testing.allocator;
+    var p = try NDArray(f32).init(allocator, &.{3});
+    defer p.deinit(allocator);
+    // 3x^2 + 2x + 1
+    p.data[0] = 3.0;
+    p.data[1] = 2.0;
+    p.data[2] = 1.0;
+
+    var d = try polyder(allocator, f32, p, 1);
+    defer d.deinit(allocator);
+    // 6x + 2
+    try std.testing.expectEqual(d.size(), 2);
+    try std.testing.expectEqual(d.data[0], 6.0);
+    try std.testing.expectEqual(d.data[1], 2.0);
+
+    var i = try polyint(allocator, f32, d, 1, 1.0);
+    defer i.deinit(allocator);
+    // 3x^2 + 2x + 1
+    try std.testing.expectEqual(i.size(), 3);
+    try std.testing.expectEqual(i.data[0], 3.0);
+    try std.testing.expectEqual(i.data[1], 2.0);
+    try std.testing.expectEqual(i.data[2], 1.0);
 }

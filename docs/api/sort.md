@@ -1,22 +1,26 @@
-# Sorting
+# Sorting API Reference
 
-The `sort` module provides sorting algorithms for arrays.
+The `algo.sort` module provides sorting algorithms and related functions.
 
-## Functions
+## Sorting
 
-### `sortByAlgo`
+### sort
 
-Sorts an array along a specified axis using a chosen algorithm.
+Return a sorted copy of an array.
 
 ```zig
-pub fn sortByAlgo(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize, algo: SortAlgo) !NDArray(T)
+pub fn sort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(T)
 ```
 
-**Parameters:**
-- `axis`: The axis along which to sort.
-- `algo`: The sorting algorithm (`.QuickSort`, `.MergeSort`, `.HeapSort`, `.InsertionSort`, `.BubbleSort`, `.TimSort`).
+### sort1D
 
-### `argsort`
+Sort a 1D array in-place (or return copy? check impl).
+
+```zig
+pub fn sort1D(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(T)
+```
+
+### argsort
 
 Returns the indices that would sort an array.
 
@@ -24,7 +28,33 @@ Returns the indices that would sort an array.
 pub fn argsort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(usize)
 ```
 
-### `nonzero`
+### argsort1D
+
+Returns the indices that would sort a 1D array.
+
+```zig
+pub fn argsort1D(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(usize)
+```
+
+### partition
+
+Return a partitioned copy of an array.
+
+```zig
+pub fn partition(allocator: Allocator, comptime T: type, arr: NDArray(T), kth: usize, axis: usize) !NDArray(T)
+```
+
+### argpartition
+
+Return the indices that would partition an array.
+
+```zig
+pub fn argpartition(allocator: Allocator, comptime T: type, arr: NDArray(T), kth: usize, axis: usize) !NDArray(usize)
+```
+
+## Searching / Counting
+
+### nonzero
 
 Return the indices of the elements that are non-zero.
 
@@ -32,21 +62,10 @@ Return the indices of the elements that are non-zero.
 pub fn nonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(usize)
 ```
 
-## Example
+### flatnonzero
+
+Return indices that are non-zero in the flattened version of a.
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const sort = num.algo.sort;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var a = try num.NDArray(f32).init(allocator, &.{3}, &.{3.0, 1.0, 2.0});
-    
-    var sorted = try sort.sortByAlgo(allocator, f32, a, 0, .QuickSort);
-    defer sorted.deinit();
-    // sorted is {1.0, 2.0, 3.0}
-}
+pub fn flatnonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(usize)
 ```

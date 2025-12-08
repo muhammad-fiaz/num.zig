@@ -10,7 +10,7 @@ pub fn main() !void {
 
     // 1. Creation
     var a = try num.NDArray(f32).zeros(allocator, &.{ 2, 3 });
-    defer a.deinit();
+    defer a.deinit(allocator);
     std.debug.print("Zeros (2x3):\n", .{});
     for (0..a.shape[0]) |i| {
         for (0..a.shape[1]) |j| {
@@ -20,7 +20,7 @@ pub fn main() !void {
     }
 
     var b = try num.NDArray(f32).arange(allocator, 0, 10, 1);
-    defer b.deinit();
+    defer b.deinit(allocator);
     std.debug.print("\nArange (0-10):\n", .{});
     for (0..b.shape[0]) |i| {
         std.debug.print("{d:.2} ", .{try b.get(&.{i})});
@@ -28,7 +28,7 @@ pub fn main() !void {
     std.debug.print("\n", .{});
 
     var c = try num.NDArray(f32).linspace(allocator, 0, 1, 5);
-    defer c.deinit();
+    defer c.deinit(allocator);
     std.debug.print("\nLinspace (0-1, 5 steps):\n", .{});
     for (0..c.shape[0]) |i| {
         std.debug.print("{d:.2} ", .{try c.get(&.{i})});
@@ -36,7 +36,7 @@ pub fn main() !void {
     std.debug.print("\n", .{});
 
     var d = try num.NDArray(f32).ones(allocator, &.{ 2, 2 });
-    defer d.deinit();
+    defer d.deinit(allocator);
     std.debug.print("\nOnes (2x2):\n", .{});
     for (0..d.shape[0]) |i| {
         for (0..d.shape[1]) |j| {
@@ -46,7 +46,7 @@ pub fn main() !void {
     }
 
     var e = try num.NDArray(f32).eye(allocator, 3);
-    defer e.deinit();
+    defer e.deinit(allocator);
     std.debug.print("\nIdentity (3x3):\n", .{});
     for (0..e.shape[0]) |i| {
         for (0..e.shape[1]) |j| {
@@ -61,10 +61,10 @@ pub fn main() !void {
     std.debug.print("Shape: {any}\n", .{e.shape});
 
     // 2. IO
-    try num.io.save(f32, b, "test_save.num");
+    try num.io.save(allocator, f32, b, "test_save.num");
     std.debug.print("\nSaved array to test_save.num\n", .{});
 
     var loaded = try num.io.load(allocator, f32, "test_save.num");
-    defer loaded.deinit();
+    defer loaded.deinit(allocator);
     std.debug.print("Loaded array size: {d}\n", .{loaded.size()});
 }

@@ -36,14 +36,14 @@ pub fn convolve(allocator: Allocator, comptime T: type, a: NDArray(T), v: NDArra
     }
 
     var result = try NDArray(T).zeros(allocator, &.{out_size});
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     // Standard definition: $(a * v)[n] = \sum_m a[m] v[n-m]$
     // Implements 'full' convolution first, then slices for other modes.
 
     const full_size = n + m - 1;
     var full_result = if (mode == .full) result else try NDArray(T).zeros(allocator, &.{full_size});
-    defer if (mode != .full) full_result.deinit();
+    defer if (mode != .full) full_result.deinit(allocator);
 
     // Iterate over result indices
     for (0..full_size) |k| {
@@ -111,9 +111,36 @@ pub fn correlate(allocator: Allocator, comptime T: type, a: NDArray(T), v: NDArr
     if (v.rank() != 1) return core.Error.RankMismatch;
 
     // Reverse v
-    var v_rev = try v.copy();
-    defer v_rev.deinit();
+    var v_rev = try v.copy(allocator);
+    defer v_rev.deinit(allocator);
     std.mem.reverse(T, v_rev.data);
 
     return convolve(allocator, T, a, v_rev, mode);
+}
+
+test "signal convolve" {
+    const allocator = std.testing.allocator;
+
+    var a = try NDArray(f64).init(allocator, &.{3});
+    defer a.deinit(allocator);
+    a.data[0] = 1;
+    a.data[1] = 2;
+    a.data[2] = 3;
+
+    var v = try NDArray(f64).init(allocator, &.{3});
+    defer v.deinit(allocator);
+    v.data[0] = 0;
+    v.data[1] = 1;
+    v.data[2] = 0.5;
+
+    // Full convolution: [0, 1, 2.5, 4, 1.5]
+    var res = try convolve(allocator, f64, a, v, .full);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(res.size(), 5);
+    try std.testing.expectApproxEqAbs(res.data[0], 0.0, 1e-9);
+    try std.testing.expectApproxEqAbs(res.data[1], 1.0, 1e-9);
+    try std.testing.expectApproxEqAbs(res.data[2], 2.5, 1e-9);
+    try std.testing.expectApproxEqAbs(res.data[3], 4.0, 1e-9);
+    try std.testing.expectApproxEqAbs(res.data[4], 1.5, 1e-9);
 }

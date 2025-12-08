@@ -15,17 +15,17 @@ fn binaryOpGeneric(
     const shape = try core.broadcastShape(allocator, a.shape, b.shape);
     defer allocator.free(shape);
 
-    var a_broad = try a.broadcastTo(shape);
-    defer a_broad.deinit();
+    var a_broad = try a.broadcastTo(allocator, shape);
+    defer a_broad.deinit(allocator);
 
-    var b_broad = try b.broadcastTo(shape);
-    defer b_broad.deinit();
+    var b_broad = try b.broadcastTo(allocator, shape);
+    defer b_broad.deinit(allocator);
 
     var result = try NDArray(R).init(allocator, shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     var iter = try core.NdIterator.init(allocator, shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var i: usize = 0;
     while (iter.next()) |coords| {
@@ -258,7 +258,7 @@ fn unaryOpGeneric(
     var result = try NDArray(R).init(allocator, a.shape);
 
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var i: usize = 0;
     while (iter.next()) |coords| {
@@ -951,7 +951,7 @@ pub fn clip(allocator: Allocator, comptime T: type, a: NDArray(T), min_val: T, m
     var result = try NDArray(T).init(allocator, a.shape);
 
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var i: usize = 0;
     while (iter.next()) |coords| {
@@ -972,13 +972,13 @@ test "elementwise add broadcasting" {
     const allocator = std.testing.allocator;
 
     var a = try NDArray(f32).ones(allocator, &.{ 2, 3 });
-    defer a.deinit();
+    defer a.deinit(allocator);
 
     var b = try NDArray(f32).full(allocator, &.{ 1, 3 }, 2.0);
-    defer b.deinit();
+    defer b.deinit(allocator);
 
     var c = try add(allocator, f32, a, b);
-    defer c.deinit();
+    defer c.deinit(allocator);
 
     try std.testing.expectEqual(c.shape[0], 2);
     try std.testing.expectEqual(c.shape[1], 3);
@@ -989,15 +989,44 @@ test "elementwise add broadcasting" {
 test "elementwise complex broadcasting" {
     const allocator = std.testing.allocator;
     var a = try NDArray(f32).ones(allocator, &.{ 1, 3, 1 });
-    defer a.deinit();
+    defer a.deinit(allocator);
     var b = try NDArray(f32).full(allocator, &.{ 2, 1, 4 }, 2.0);
-    defer b.deinit();
+    defer b.deinit(allocator);
 
     var c = try add(allocator, f32, a, b);
-    defer c.deinit();
+    defer c.deinit(allocator);
 
     try std.testing.expectEqual(c.shape[0], 2);
     try std.testing.expectEqual(c.shape[1], 3);
     try std.testing.expectEqual(c.shape[2], 4);
     try std.testing.expectEqual(try c.get(&.{ 0, 0, 0 }), 3.0);
+}
+
+test "elementwise clip" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{3});
+    defer a.deinit(allocator);
+    try a.set(&.{0}, -1.0);
+    try a.set(&.{1}, 0.5);
+    try a.set(&.{2}, 2.0);
+
+    var c = try clip(allocator, f32, a, 0.0, 1.0);
+    defer c.deinit(allocator);
+
+    try std.testing.expectEqual(try c.get(&.{0}), 0.0);
+    try std.testing.expectEqual(try c.get(&.{1}), 0.5);
+    try std.testing.expectEqual(try c.get(&.{2}), 1.0);
+}
+
+test "elementwise mul" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).full(allocator, &.{2}, 2.0);
+    defer a.deinit(allocator);
+    var b = try NDArray(f32).full(allocator, &.{2}, 3.0);
+    defer b.deinit(allocator);
+
+    var c = try mul(allocator, f32, a, b);
+    defer c.deinit(allocator);
+
+    try std.testing.expectEqual(try c.get(&.{0}), 6.0);
 }

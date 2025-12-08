@@ -1,68 +1,117 @@
-# Autograd
+# Autograd API Reference
 
-The `autograd` module provides automatic differentiation capabilities for tensors, enabling gradient-based optimization for machine learning and mathematical modeling.
+The `autograd` module provides automatic differentiation.
 
 ## Tensor
 
-The core structure is `Tensor(T)`, which wraps an `NDArray` and tracks operations for backpropagation.
-
-### `init`
-
-Initializes a new Tensor.
+The core data structure for autograd.
 
 ```zig
-pub fn init(allocator: Allocator, data: NDArray(T), requires_grad: bool) !Tensor(T)
+pub fn Tensor(comptime T: type) type
 ```
 
-**Parameters:**
-- `allocator`: The memory allocator.
-- `data`: The underlying `NDArray` data.
-- `requires_grad`: Boolean indicating if gradients should be computed for this tensor.
+### Lifecycle
 
-**Returns:**
-- A new `Tensor(T)` struct.
+#### init
 
-### `backward`
-
-Computes the gradients of the tensor with respect to graph leaves.
+Initialize a tensor.
 
 ```zig
-pub fn backward(self: *Tensor(T)) !void
+pub fn init(allocator: Allocator, data: NDArray(T), requires_grad: bool) !*Self
 ```
 
-**Description:**
-Traverses the computational graph backwards from the current tensor (usually a scalar loss) and populates the `.grad` field of all tensors that have `requires_grad=true`.
+#### deinit
 
-## Example
+Deinitialize the tensor.
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const Tensor = num.autograd.Tensor;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    // Create tensors
-    var x_data = try num.NDArray(f64).init(allocator, &.{2, 2});
-    x_data.set(&.{0, 0}, 2.0);
-    var x = try Tensor(f64).init(allocator, x_data, true);
-
-    // Perform operations (y = x * x)
-    // Note: Operations would be methods on Tensor or autograd functions
-    // This is a conceptual example assuming op implementation
-    // var y = try x.mul(x); 
-    
-    // Compute gradients
-    // try y.backward();
-
-    // Access gradients
-    // std.debug.print("Grad: {}\n", .{x.grad});
-}
+pub fn deinit(self: *Self, allocator: Allocator) void
 ```
 
-**Output:**
-```text
-Grad: NDArray(f64, shape=[2, 2])
+### Gradients
+
+#### backward
+
+Compute gradients.
+
+```zig
+pub fn backward(self: *Self, allocator: Allocator) !void
+```
+
+### Operations
+
+#### add
+
+Element-wise addition.
+
+```zig
+pub fn add(self: *Self, allocator: Allocator, other: *Self) !*Self
+```
+
+#### mul
+
+Element-wise multiplication.
+
+```zig
+pub fn mul(self: *Self, allocator: Allocator, other: *Self) !*Self
+```
+
+#### matmul
+
+Matrix multiplication.
+
+```zig
+pub fn matmul(self: *Self, allocator: Allocator, other: *Self) !*Self
+```
+
+### Activation Functions
+
+#### relu
+
+Rectified Linear Unit.
+
+```zig
+pub fn relu(self: *Self, allocator: Allocator) !*Self
+```
+
+#### sigmoid
+
+Sigmoid activation.
+
+```zig
+pub fn sigmoid(self: *Self, allocator: Allocator) !*Self
+```
+
+#### tanh
+
+Hyperbolic tangent activation.
+
+```zig
+pub fn tanh(self: *Self, allocator: Allocator) !*Self
+```
+
+#### softmax
+
+Softmax activation.
+
+```zig
+pub fn softmax(self: *Self, allocator: Allocator) !*Self
+```
+
+### Loss Functions
+
+#### mse_loss
+
+Mean Squared Error loss.
+
+```zig
+pub fn mse_loss(self: *Self, allocator: Allocator, target: *Self) !*Self
+```
+
+#### cross_entropy_loss
+
+Cross Entropy loss.
+
+```zig
+pub fn cross_entropy_loss(self: *Self, allocator: Allocator, target: *Self) !*Self
 ```

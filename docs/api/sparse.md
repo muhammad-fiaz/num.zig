@@ -1,67 +1,43 @@
-# Sparse Matrices
+# Sparse Matrices API Reference
 
-The `sparse` module provides support for sparse matrix formats, efficient for matrices with many zero elements.
+The `sparse` module provides sparse matrix data structures.
 
 ## CSRMatrix
 
-Compressed Sparse Row (CSR) matrix format.
+Compressed Sparse Row matrix.
 
-### `init`
+```zig
+pub fn CSRMatrix(comptime T: type) type
+```
 
-Initializes an empty CSR matrix.
+### init
+
+Initialize a sparse matrix.
 
 ```zig
 pub fn init(allocator: Allocator, rows: usize, cols: usize) !Self
 ```
 
-### `fromDense`
+### deinit
 
-Converts a dense `NDArray` to CSR format.
+Deinitialize the matrix.
+
+```zig
+pub fn deinit(self: *Self, allocator: Allocator) void
+```
+
+### fromDense
+
+Convert a dense array to a CSR matrix.
 
 ```zig
 pub fn fromDense(allocator: Allocator, arr: NDArray(T)) !Self
 ```
 
-**Parameters:**
-- `allocator`: Memory allocator.
-- `arr`: Input dense `NDArray` (must be rank 2).
+### toDense
 
-**Returns:**
-- A new `CSRMatrix`.
-
-### `toDense`
-
-Converts the CSR matrix back to a dense `NDArray`.
+Convert the CSR matrix to a dense array.
 
 ```zig
-pub fn toDense(self: Self) !NDArray(T)
-```
-
-**Returns:**
-- A new dense `NDArray`.
-
-## Example
-
-```zig
-const std = @import("std");
-const num = @import("num");
-const CSRMatrix = num.sparse.CSRMatrix;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    // Create dense matrix
-    var dense = try num.NDArray(f64).init(allocator, &.{3, 3});
-    try dense.set(&.{0, 0}, 1.0);
-    try dense.set(&.{2, 2}, 5.0);
-
-    // Convert to CSR
-    var csr = try CSRMatrix(f64).fromDense(allocator, dense);
-    defer csr.deinit();
-
-    // Convert back
-    var dense2 = try csr.toDense();
-    defer dense2.deinit();
-}
+pub fn toDense(self: Self, allocator: Allocator) !NDArray(T)
 ```

@@ -17,32 +17,27 @@ pub fn LinkedList(comptime T: type) type {
         };
 
         head: ?*Node,
-        allocator: Allocator,
 
         /// Initialize a new linked list.
         ///
         /// Logic: head = null
         ///
-        /// Arguments:
-        ///     allocator: Allocator to use for nodes.
-        ///
         /// Returns:
         ///     New LinkedList instance.
-        pub fn init(allocator: Allocator) Self {
+        pub fn init() Self {
             return .{
                 .head = null,
-                .allocator = allocator,
             };
         }
 
         /// Deinitialize the list and free all nodes.
         ///
         /// Logic: traverse and free
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             var current = self.head;
             while (current) |node| {
                 const next = node.next;
-                self.allocator.destroy(node);
+                allocator.destroy(node);
                 current = next;
             }
             self.head = null;
@@ -53,9 +48,10 @@ pub fn LinkedList(comptime T: type) type {
         /// Logic: traverse to end and link new node
         ///
         /// Arguments:
+        ///     allocator: Allocator to use for nodes.
         ///     value: Value to append.
-        pub fn append(self: *Self, value: T) !void {
-            const new_node = try self.allocator.create(Node);
+        pub fn append(self: *Self, allocator: Allocator, value: T) !void {
+            const new_node = try allocator.create(Node);
             new_node.* = .{ .data = value, .next = null };
 
             if (self.head == null) {
@@ -74,9 +70,10 @@ pub fn LinkedList(comptime T: type) type {
         /// Logic: new_node.next = head; head = new_node
         ///
         /// Arguments:
+        ///     allocator: Allocator to use for nodes.
         ///     value: Value to prepend.
-        pub fn prepend(self: *Self, value: T) !void {
-            const new_node = try self.allocator.create(Node);
+        pub fn prepend(self: *Self, allocator: Allocator, value: T) !void {
+            const new_node = try allocator.create(Node);
             new_node.* = .{ .data = value, .next = self.head };
             self.head = new_node;
         }
@@ -104,11 +101,12 @@ pub fn LinkedList(comptime T: type) type {
         /// Logic: traverse, find, unlink, free
         ///
         /// Arguments:
+        ///     allocator: Allocator.
         ///     value: Value to delete.
         ///
         /// Returns:
         ///     bool (true if deleted, false if not found).
-        pub fn delete(self: *Self, value: T) bool {
+        pub fn delete(self: *Self, allocator: Allocator, value: T) bool {
             var current = self.head;
             var prev: ?*Node = null;
 
@@ -119,7 +117,7 @@ pub fn LinkedList(comptime T: type) type {
                     } else {
                         self.head = node.next;
                     }
-                    self.allocator.destroy(node);
+                    allocator.destroy(node);
                     return true;
                 }
                 prev = node;
@@ -274,4 +272,24 @@ pub fn CircularLinkedList(comptime T: type) type {
             }
         }
     };
+}
+
+test "linked list" {
+    const allocator = std.testing.allocator;
+    var list = LinkedList(i32).init();
+    defer list.deinit(allocator);
+
+    try list.append(allocator, 1);
+    try list.append(allocator, 2);
+    try list.prepend(allocator, 0);
+
+    try std.testing.expectEqual(list.head.?.data, 0);
+    try std.testing.expectEqual(list.head.?.next.?.data, 1);
+    try std.testing.expectEqual(list.head.?.next.?.next.?.data, 2);
+
+    try std.testing.expect(list.find(1) != null);
+    try std.testing.expect(list.find(99) == null);
+
+    _ = list.delete(allocator, 1);
+    try std.testing.expect(list.find(1) == null);
 }

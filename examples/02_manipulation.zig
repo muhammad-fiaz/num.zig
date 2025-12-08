@@ -9,11 +9,11 @@ pub fn main() !void {
     std.debug.print("=== Manipulation Example ===\n\n", .{});
 
     var a = try num.NDArray(f32).arange(allocator, 0, 12, 1);
-    defer a.deinit();
+    defer a.deinit(allocator);
 
     // Reshape
-    var b = try a.reshape(&.{ 3, 4 });
-    defer b.deinit();
+    var b = try a.reshape(allocator, &.{ 3, 4 });
+    defer b.deinit(allocator);
     std.debug.print("Reshaped to 3x4:\n", .{});
     for (0..b.shape[0]) |i| {
         for (0..b.shape[1]) |j| {
@@ -23,8 +23,8 @@ pub fn main() !void {
     }
 
     // Transpose
-    var c = try b.transpose();
-    defer c.deinit();
+    var c = try b.transpose(allocator);
+    defer c.deinit(allocator);
     std.debug.print("\nTransposed to 4x3:\n", .{});
     for (0..c.shape[0]) |i| {
         for (0..c.shape[1]) |j| {
@@ -34,21 +34,21 @@ pub fn main() !void {
     }
 
     // Flatten
-    var d = try c.flatten();
-    defer d.deinit();
+    var d = try c.flatten(allocator);
+    defer d.deinit(allocator);
     std.debug.print("\nFlattened size: {d}\n", .{d.size()});
 
     // vstack
     std.debug.print("\n--- vstack ---\n", .{});
     var v1 = try num.NDArray(f32).ones(allocator, &.{ 2, 3 });
-    defer v1.deinit();
+    defer v1.deinit(allocator);
     var v2 = try num.NDArray(f32).full(allocator, &.{ 2, 3 }, 2.0);
-    defer v2.deinit();
+    defer v2.deinit(allocator);
 
     // Create a slice of arrays for vstack
     const v_arrays = [_]num.NDArray(f32){ v1, v2 };
     var v_stacked = try num.manipulation.vstack(allocator, f32, &v_arrays);
-    defer v_stacked.deinit();
+    defer v_stacked.deinit(allocator);
 
     std.debug.print("Stacked shape: {any}\n", .{v_stacked.shape});
     std.debug.print("Value at [0,0]: {d}\n", .{try v_stacked.get(&.{ 0, 0 })});
@@ -57,18 +57,18 @@ pub fn main() !void {
     // hstack
     std.debug.print("\n--- hstack ---\n", .{});
     var h_stacked = try num.manipulation.hstack(allocator, f32, &v_arrays);
-    defer h_stacked.deinit();
+    defer h_stacked.deinit(allocator);
     std.debug.print("H-Stacked shape: {any}\n", .{h_stacked.shape}); // Should be (2, 6)
 
     // Tile
     std.debug.print("\n--- Tile ---\n", .{});
     var t1 = try num.NDArray(f32).init(allocator, &.{2});
-    defer t1.deinit();
+    defer t1.deinit(allocator);
     try t1.set(&.{0}, 1);
     try t1.set(&.{1}, 2);
 
     var tiled = try num.manipulation.tile(allocator, f32, t1, &.{ 2, 2 });
-    defer tiled.deinit();
+    defer tiled.deinit(allocator);
     std.debug.print("Tiled shape: {any}\n", .{tiled.shape});
     std.debug.print("Values:\n", .{});
     for (0..tiled.shape[0]) |i| {
@@ -81,7 +81,7 @@ pub fn main() !void {
     // Repeat
     std.debug.print("\n--- Repeat ---\n", .{});
     var repeated = try num.manipulation.repeat(allocator, f32, t1, 3, 0);
-    defer repeated.deinit();
+    defer repeated.deinit(allocator);
     std.debug.print("Repeated shape: {any}\n", .{repeated.shape});
     std.debug.print("Values: ", .{});
     for (0..repeated.shape[0]) |i| {
@@ -92,16 +92,16 @@ pub fn main() !void {
     // Flip
     std.debug.print("\n--- Flip ---\n", .{});
     var flipped = try num.manipulation.flip(allocator, f32, t1, 0);
-    defer flipped.deinit();
+    defer flipped.deinit(allocator);
     std.debug.print("Original: 1 2\n", .{});
     std.debug.print("Flipped: {d} {d}\n", .{ try flipped.get(&.{0}), try flipped.get(&.{1}) });
 
     // Roll
     std.debug.print("\n--- Roll ---\n", .{});
     var r1 = try num.NDArray(f32).arange(allocator, 0, 5, 1);
-    defer r1.deinit();
+    defer r1.deinit(allocator);
     var rolled = try num.manipulation.roll(allocator, f32, r1, 2, 0);
-    defer rolled.deinit();
+    defer rolled.deinit(allocator);
     std.debug.print("Original: 0 1 2 3 4\n", .{});
     std.debug.print("Rolled (shift 2): ", .{});
     for (0..rolled.shape[0]) |i| {

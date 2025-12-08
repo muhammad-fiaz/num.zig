@@ -11,7 +11,7 @@ const Allocator = std.mem.Allocator;
 /// ```zig
 /// var rng = random.Random.init(42);
 /// var arr = try rng.uniform(allocator, &.{2, 3});
-/// defer arr.deinit();
+/// defer arr.deinit(allocator);
 /// ```
 pub const Random = struct {
     prng: std.Random.DefaultPrng,
@@ -48,7 +48,7 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var arr = try rng.uniform(allocator, &.{2, 2});
-    /// defer arr.deinit();
+    /// defer arr.deinit(allocator);
     /// // arr contains random floats between 0.0 and 1.0
     /// ```
     pub fn uniform(self: *Random, allocator: Allocator, shape: []const usize) !NDArray(f32) {
@@ -76,7 +76,7 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var arr = try rng.normal(allocator, &.{2, 2}, 0.0, 1.0);
-    /// defer arr.deinit();
+    /// defer arr.deinit(allocator);
     /// // arr contains random floats from N(0, 1)
     /// ```
     pub fn normal(self: *Random, allocator: Allocator, shape: []const usize, mean: f32, stddev: f32) !NDArray(f32) {
@@ -104,7 +104,7 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var arr = try rng.randint(allocator, &.{5}, 0, 10);
-    /// defer arr.deinit();
+    /// defer arr.deinit(allocator);
     /// // arr contains random integers between 0 and 9
     /// ```
     pub fn randint(self: *Random, allocator: Allocator, shape: []const usize, low: i32, high: i32) !NDArray(i32) {
@@ -127,7 +127,7 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var arr = try NDArray(f32).init(allocator, &.{3}, &.{1.0, 2.0, 3.0});
-    /// defer arr.deinit();
+    /// defer arr.deinit(allocator);
     ///
     /// rng.shuffle(f32, &arr);
     /// // arr is shuffled, e.g., {2.0, 1.0, 3.0}
@@ -176,7 +176,7 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var p = try rng.permutation(allocator, 5);
-    /// defer p.deinit();
+    /// defer p.deinit(allocator);
     /// // p is a permutation of 0..4
     /// ```
     pub fn permutation(self: *Random, allocator: Allocator, n: usize) !NDArray(usize) {
@@ -202,10 +202,10 @@ pub const Random = struct {
     /// ```zig
     /// var rng = random.Random.init(42);
     /// var a = try NDArray(f32).init(allocator, &.{3}, &.{10.0, 20.0, 30.0});
-    /// defer a.deinit();
+    /// defer a.deinit(allocator);
     ///
     /// var sample = try rng.choice(allocator, f32, a, 2, false);
-    /// defer sample.deinit();
+    /// defer sample.deinit(allocator);
     /// // sample contains 2 elements from a
     /// ```
     pub fn choice(self: *Random, allocator: Allocator, comptime T: type, a: NDArray(T), size: usize, replace: bool) !NDArray(T) {
@@ -299,11 +299,33 @@ test "random distribution stats" {
     const allocator = std.testing.allocator;
     var rng = Random.init(42);
     var arr = try rng.normal(allocator, &.{1000}, 0.0, 1.0);
-    defer arr.deinit();
+    defer arr.deinit(allocator);
 
     // Simple check if values are somewhat distributed
     var sum: f32 = 0;
     for (arr.data) |v| sum += v;
     const mean = sum / 1000.0;
     try std.testing.expect(mean > -0.2 and mean < 0.2);
+}
+
+test "random uniform" {
+    const allocator = std.testing.allocator;
+    var rng = Random.init(42);
+    var arr = try rng.uniform(allocator, &.{100});
+    defer arr.deinit(allocator);
+
+    for (arr.data) |v| {
+        try std.testing.expect(v >= 0.0 and v < 1.0);
+    }
+}
+
+test "random randint" {
+    const allocator = std.testing.allocator;
+    var rng = Random.init(42);
+    var arr = try rng.randint(allocator, &.{100}, 0, 10);
+    defer arr.deinit(allocator);
+
+    for (arr.data) |v| {
+        try std.testing.expect(v >= 0 and v < 10);
+    }
 }

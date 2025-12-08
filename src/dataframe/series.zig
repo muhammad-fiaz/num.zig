@@ -17,7 +17,7 @@ pub fn Series(comptime T: type) type {
 
             // We take ownership of data, so ensure we clean it up if duplication fails
             var data_mut = data;
-            errdefer data_mut.deinit();
+            errdefer data_mut.deinit(allocator);
 
             return Self{
                 .name = try allocator.dupe(u8, name),
@@ -28,7 +28,7 @@ pub fn Series(comptime T: type) type {
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.name);
-            self.data.deinit();
+            self.data.deinit(self.allocator);
         }
 
         pub fn print(self: Self) !void {
@@ -40,4 +40,18 @@ pub fn Series(comptime T: type) type {
             }
         }
     };
+}
+
+test "series" {
+    const allocator = std.testing.allocator;
+    var data = try NDArray(f64).init(allocator, &.{3});
+    data.data[0] = 1;
+    data.data[1] = 2;
+    data.data[2] = 3;
+
+    var s = try Series(f64).init(allocator, "test", data);
+    defer s.deinit();
+
+    try std.testing.expectEqualStrings(s.name, "test");
+    try std.testing.expectEqual(s.data.size(), 3);
 }

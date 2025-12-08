@@ -19,29 +19,27 @@ pub fn Queue(comptime T: type) type {
 
         head: ?*Node,
         tail: ?*Node,
-        allocator: Allocator,
 
-        pub fn init(allocator: Allocator) Self {
+        pub fn init() Self {
             return .{
                 .head = null,
                 .tail = null,
-                .allocator = allocator,
             };
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             var current = self.head;
             while (current) |node| {
                 const next = node.next;
-                self.allocator.destroy(node);
+                allocator.destroy(node);
                 current = next;
             }
             self.head = null;
             self.tail = null;
         }
 
-        pub fn enqueue(self: *Self, value: T) !void {
-            const new_node = try self.allocator.create(Node);
+        pub fn enqueue(self: *Self, allocator: Allocator, value: T) !void {
+            const new_node = try allocator.create(Node);
             new_node.* = .{ .data = value, .next = null };
 
             if (self.tail) |tail| {
@@ -52,14 +50,14 @@ pub fn Queue(comptime T: type) type {
             self.tail = new_node;
         }
 
-        pub fn dequeue(self: *Self) ?T {
+        pub fn dequeue(self: *Self, allocator: Allocator) ?T {
             if (self.head) |head| {
                 const value = head.data;
                 self.head = head.next;
                 if (self.head == null) {
                     self.tail = null;
                 }
-                self.allocator.destroy(head);
+                allocator.destroy(head);
                 return value;
             }
             return null;
@@ -69,4 +67,20 @@ pub fn Queue(comptime T: type) type {
             return self.head == null;
         }
     };
+}
+
+test "queue" {
+    const allocator = std.testing.allocator;
+    var q = Queue(i32).init();
+    defer q.deinit(allocator);
+
+    try std.testing.expect(q.isEmpty());
+
+    try q.enqueue(allocator, 10);
+    try q.enqueue(allocator, 20);
+
+    try std.testing.expect(!q.isEmpty());
+    try std.testing.expectEqual(q.dequeue(allocator), 10);
+    try std.testing.expectEqual(q.dequeue(allocator), 20);
+    try std.testing.expectEqual(q.dequeue(allocator), null);
 }

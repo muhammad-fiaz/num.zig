@@ -10,18 +10,18 @@ pub fn main() !void {
 
     // Simple Dense Layer Forward Pass
     var layer = try num.ml.layers.Dense.init(allocator, 3, 2, .XavierUniform);
-    defer layer.deinit();
+    defer layer.deinit(allocator);
 
     var input = try num.NDArray(f32).init(allocator, &.{ 1, 3 });
-    defer input.deinit();
+    defer input.deinit(allocator);
     input.fill(0.5);
 
     var output = try layer.forward(allocator, &input);
-    defer output.deinit();
+    defer output.deinit(allocator);
 
     // Apply Activation
     var activated = try num.ml.activations.relu(allocator, &output);
-    defer activated.deinit();
+    defer activated.deinit(allocator);
 
     std.debug.print("Dense Layer Output (ReLU):\n", .{});
     for (0..activated.shape[0]) |i| {
@@ -33,7 +33,7 @@ pub fn main() !void {
 
     // Loss Calculation
     var target = try num.NDArray(f32).init(allocator, &.{ 1, 2 });
-    defer target.deinit();
+    defer target.deinit(allocator);
     try target.set(&.{ 0, 0 }, 1.0);
     try target.set(&.{ 0, 1 }, 0.0);
 

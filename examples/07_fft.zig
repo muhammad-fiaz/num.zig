@@ -9,11 +9,11 @@ pub fn main() !void {
     std.debug.print("=== FFT Example ===\n\n", .{});
 
     var a = try num.NDArray(f32).init(allocator, &.{4});
-    defer a.deinit();
+    defer a.deinit(allocator);
     a.fill(1.0); // DC signal
 
     var fft_res = try num.fft.FFT.fft(allocator, &a);
-    defer fft_res.deinit();
+    defer fft_res.deinit(allocator);
 
     std.debug.print("Input: [1, 1, 1, 1]\n", .{});
     std.debug.print("FFT Output:\n", .{});
@@ -23,7 +23,7 @@ pub fn main() !void {
     }
 
     var ifft_res = try num.fft.FFT.ifft(allocator, &fft_res);
-    defer ifft_res.deinit();
+    defer ifft_res.deinit(allocator);
 
     std.debug.print("\nIFFT Output (should match input):\n", .{});
     for (0..ifft_res.shape[0]) |i| {
@@ -34,14 +34,14 @@ pub fn main() !void {
     // Sine wave
     std.debug.print("\n--- Sine Wave FFT ---\n", .{});
     var sine = try num.NDArray(f32).init(allocator, &.{8});
-    defer sine.deinit();
+    defer sine.deinit(allocator);
     for (0..8) |i| {
         const t = @as(f32, @floatFromInt(i)) / 8.0;
         try sine.set(&.{i}, std.math.sin(2.0 * std.math.pi * t)); // 1 Hz
     }
 
     var sine_fft = try num.fft.FFT.fft(allocator, &sine);
-    defer sine_fft.deinit();
+    defer sine_fft.deinit(allocator);
 
     std.debug.print("Sine Wave FFT (Magnitude):\n", .{});
     for (0..sine_fft.shape[0]) |i| {

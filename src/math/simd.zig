@@ -51,3 +51,17 @@ pub fn mul(comptime T: type, dest: []T, a: []const T, b: []const T) void {
         dest[i] = a[i] * b[i];
     }
 }
+
+test "simd" {
+    var a = [_]f32{ 1, 2, 3, 4, 5 };
+    var b = [_]f32{ 10, 20, 30, 40, 50 };
+    var dest = [_]f32{ 0, 0, 0, 0, 0 };
+
+    add(f32, &dest, &a, &b);
+    try std.testing.expectEqual(dest[0], 11);
+    try std.testing.expectEqual(dest[4], 55);
+
+    mul(f32, &dest, &a, &b);
+    try std.testing.expectEqual(dest[0], 10);
+    try std.testing.expectEqual(dest[4], 250);
+}

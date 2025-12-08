@@ -45,7 +45,7 @@ pub fn main() !void {
 
     // Read CSV
     var csv_arr = try num.io.readCSV(allocator, f64, "test.csv");
-    defer csv_arr.deinit();
+    defer csv_arr.deinit(allocator);
 
     std.debug.print("Read CSV:\n", .{});
     try printArray(f64, csv_arr);
@@ -59,7 +59,7 @@ pub fn main() !void {
     std.debug.print("\n--- LU Decomposition ---\n", .{});
 
     var mat = try num.NDArray(f64).init(allocator, &.{ 3, 3 });
-    defer mat.deinit();
+    defer mat.deinit(allocator);
 
     // A = [[4, 3], [6, 3]] -> L=[[1,0],[1.5,1]], U=[[4,3],[0,-1.5]]
     // Let use a 3x3 example:
@@ -81,8 +81,8 @@ pub fn main() !void {
 
     var lu_res = try num.linalg.lu(f64, allocator, &mat);
     defer {
-        lu_res.l.deinit();
-        lu_res.u.deinit();
+        lu_res.l.deinit(allocator);
+        lu_res.u.deinit(allocator);
     }
 
     std.debug.print("L:\n", .{});
@@ -93,7 +93,7 @@ pub fn main() !void {
     // --- Test Boolean Masking ---
     std.debug.print("\n--- Boolean Masking ---\n", .{});
     var data = try num.NDArray(f64).init(allocator, &.{5});
-    defer data.deinit();
+    defer data.deinit(allocator);
     data.data[0] = 10;
     data.data[1] = 20;
     data.data[2] = 30;
@@ -101,7 +101,7 @@ pub fn main() !void {
     data.data[4] = 50;
 
     var mask = try num.NDArray(bool).init(allocator, &.{5});
-    defer mask.deinit();
+    defer mask.deinit(allocator);
     // Mask: [true, false, true, false, true]
     mask.data[0] = true;
     mask.data[1] = false;
@@ -110,7 +110,7 @@ pub fn main() !void {
     mask.data[4] = true;
 
     var masked = try num.indexing.booleanMask(allocator, f64, data, mask);
-    defer masked.deinit();
+    defer masked.deinit(allocator);
 
     std.debug.print("Data: ", .{});
     try printArray(f64, data);

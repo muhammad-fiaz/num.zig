@@ -83,3 +83,23 @@ pub const DataFrame = struct {
         return self.columns.get(name);
     }
 };
+
+test "dataframe" {
+    const allocator = std.testing.allocator;
+    const NDArray = core.NDArray;
+
+    var df = DataFrame.init(allocator);
+    defer df.deinit();
+
+    var data = try NDArray(f64).init(allocator, &.{3});
+    data.data[0] = 1.0;
+    data.data[1] = 2.0;
+    data.data[2] = 3.0;
+
+    const s = try Series(f64).init(allocator, "A", data);
+    try df.addColumn("A", .{ .Float = s });
+
+    try std.testing.expectEqual(df.num_rows, 3);
+    try std.testing.expect(df.getColumn("A") != null);
+    try std.testing.expect(df.getColumn("B") == null);
+}

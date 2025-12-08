@@ -48,3 +48,29 @@ pub fn abs(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDAr
     }
     return result;
 }
+
+test "complex operations" {
+    const allocator = std.testing.allocator;
+    var c_arr = try NDArray(Complex(f32)).init(allocator, &.{2});
+    defer c_arr.deinit(allocator);
+    c_arr.data[0] = Complex(f32).init(3.0, 4.0);
+    c_arr.data[1] = Complex(f32).init(1.0, -1.0);
+
+    var r = try real(allocator, f32, c_arr);
+    defer r.deinit(allocator);
+    try std.testing.expectEqual(r.data[0], 3.0);
+    try std.testing.expectEqual(r.data[1], 1.0);
+
+    var i = try imag(allocator, f32, c_arr);
+    defer i.deinit(allocator);
+    try std.testing.expectEqual(i.data[0], 4.0);
+    try std.testing.expectEqual(i.data[1], -1.0);
+
+    var c = try conj(allocator, f32, c_arr);
+    defer c.deinit(allocator);
+    try std.testing.expectEqual(c.data[0].im, -4.0);
+
+    var a = try abs(allocator, f32, c_arr);
+    defer a.deinit(allocator);
+    try std.testing.expectEqual(a.data[0], 5.0);
+}

@@ -33,6 +33,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "algorithms", .path = "examples/13_algorithms.zig" },
         .{ .name = "csv_linalg_masking", .path = "examples/14_csv_linalg_masking.zig" },
         .{ .name = "comprehensive", .path = "examples/15_comprehensive.zig" },
+        .{ .name = "ml_sample", .path = "examples/16_ml_sample.zig" },
     };
 
     inline for (examples) |example| {
