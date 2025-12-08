@@ -1,9 +1,19 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: "num.zig",
-  description: "A fast, high-performance numerical computing library for Zig.",
+  title: "Num.Zig Documentation",
+  titleTemplate: "%s | Num.Zig Documentation",
+  description: "Num.Zig Documentation — high-performance numerical computing for Zig with NDArray, linear algebra, statistics, FFT, ML, signal, and more.",
   base: '/num.zig/',
+  head: [
+    ["meta", { name: "author", content: "Muhammad Fiaz" }],
+    ["meta", { name: "og:site_name", content: "Num.Zig Documentation" }],
+    ["meta", { name: "og:title", content: "Num.Zig Documentation" }],
+    ["meta", { name: "og:description", content: "High-performance numerical computing for Zig: NDArray, linalg, ML, FFT, stats, signal, and more." }],
+    ["meta", { name: "twitter:card", content: "summary" }],
+    ["meta", { name: "twitter:title", content: "Num.Zig Documentation" }],
+    ["meta", { name: "twitter:description", content: "Fast numerical computing for Zig with NDArray, linalg, ML, FFT, stats, signal, and IO." }]
+  ],
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },

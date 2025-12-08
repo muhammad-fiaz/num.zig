@@ -1,3 +1,8 @@
+---
+title: "Num.Zig API Overview"
+description: "Module map for Num.Zig by Muhammad Fiaz — NDArray core, math, linalg, stats, random, FFT, signal, ML, IO, and more."
+---
+
 # API Overview
 
 The `num.zig` library is organized into several modules:

@@ -1,3 +1,8 @@
+---
+title: "Num.Zig Quick Start"
+description: "Install and run Num.Zig fast — step-by-step setup, first NDArray program, and basic examples."
+---
+
 # Quick Start
 
 Get started with `num.zig` in minutes! This guide will walk you through installation and your first numerical computing program.

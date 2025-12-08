@@ -1,5 +1,6 @@
----
 layout: home
+title: "Num.Zig Documentation | High-Performance Numerical Computing"
+description: "Official Num.Zig docs by Muhammad Fiaz — NDArray, linear algebra, statistics, FFT, machine learning, signal, set operations, IO, and more for Zig."
 
 hero:
   name: "num.zig"
