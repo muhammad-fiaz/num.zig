@@ -16,15 +16,15 @@ pub fn main() !void {
     // 1. Create a 2x3 matrix using arange (0, 1, 2, 3, 4, 5)
     // arange creates a 1D array, so we reshape it to 2x3
     var a = try NDArray(f32).arange(allocator, 0.0, 6.0, 1.0);
-    defer a.deinit();
-    try a.reshape(&.{ 2, 3 });
+    defer a.deinit(allocator);
+    try a.reshape(allocator, &.{ 2, 3 });
 
     std.debug.print("Matrix A (2x3):\n", .{});
     try printMatrix(a);
 
     // 2. Create a 3x2 matrix of ones
     var b = try NDArray(f32).ones(allocator, &.{ 3, 2 });
-    defer b.deinit();
+    defer b.deinit(allocator);
 
     std.debug.print("Matrix B (3x2 - all ones):\n", .{});
     try printMatrix(b);
@@ -32,7 +32,7 @@ pub fn main() !void {
     // 3. Matrix Multiplication (Dot Product)
     // Result will be (2x3) @ (3x2) = (2x2)
     var c = try num.linalg.matmul(f32, allocator, &a, &b);
-    defer c.deinit();
+    defer c.deinit(allocator);
 
     std.debug.print("Matrix C = A @ B (2x2):\n", .{});
     try printMatrix(c);
