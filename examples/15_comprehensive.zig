@@ -47,7 +47,7 @@ pub fn main() !void {
     const t_data = try num.NDArray(f64).zeros(allocator, &.{ 2, 2 });
     var t = try num.autograd.Tensor(f64).init(allocator, t_data, true);
     defer t.deinit(allocator);
-    try t.backward();
+    try t.backward(allocator);
     if (t.grad) |g| {
         std.debug.print("Grad (0,0): {d}\n", .{try g.get(&.{ 0, 0 })});
     }
@@ -116,7 +116,8 @@ pub fn main() !void {
     defer xi.deinit(allocator);
     xi.data[0] = 0.5;
 
-    var yi = try num.interpolate.interp1d(allocator, f64, x_interp, y_interp, xi);
+    const interp_opts = num.interpolate.InterpOptions(f64){};
+    var yi = try num.interpolate.interp1d(allocator, f64, x_interp, y_interp, xi, interp_opts);
     defer yi.deinit(allocator);
     std.debug.print("Interp at 0.5: {d}\n", .{yi.data[0]});
 
