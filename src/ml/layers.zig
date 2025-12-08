@@ -2,7 +2,10 @@ const std = @import("std");
 const core = @import("../core.zig");
 const linalg = @import("../linalg.zig");
 const random = @import("../random.zig");
+const autograd = @import("../autograd/tensor.zig");
+const io = @import("../io.zig");
 const NDArray = core.NDArray;
+const Tensor = autograd.Tensor;
 const Allocator = std.mem.Allocator;
 
 /// Initialization methods for neural network weights.
@@ -19,8 +22,9 @@ pub const InitMethod = enum {
 /// Logic:
 /// output = input @ weights + bias
 pub const Dense = struct {
-    weights: NDArray(f32),
-    bias: NDArray(f32),
+    weights: *Tensor(f32),
+    bias: *Tensor(f32),
+    training: bool,
 
     /// Initializes a new Dense layer with the specified input and output dimensions.
     ///
@@ -36,38 +40,51 @@ pub const Dense = struct {
     /// Example:
     /// ```zig
     /// var layer = try Dense.init(allocator, 784, 128, .XavierUniform);
-    /// defer layer.deinit();
+    /// defer layer.deinit(allocator);
     /// ```
     pub fn init(allocator: Allocator, input_dim: usize, output_dim: usize, init_method: InitMethod) !Dense {
-        var w = try NDArray(f32).init(allocator, &.{ input_dim, output_dim });
-        errdefer w.deinit();
+        const w_data = try NDArray(f32).init(allocator, &.{ input_dim, output_dim });
 
-        var prng = std.Random.DefaultPrng.init(0); // Should ideally be passed or seeded globally
+        var prng = std.Random.DefaultPrng.init(0);
         const rand = prng.random();
 
         switch (init_method) {
             .RandomUniform => {
-                for (w.data) |*val| val.* = rand.float(f32) * 0.02 - 0.01;
+                for (w_data.data) |*val| val.* = rand.float(f32) * 0.02 - 0.01;
             },
             .XavierUniform => {
                 const limit = @sqrt(6.0 / @as(f32, @floatFromInt(input_dim + output_dim)));
-                for (w.data) |*val| val.* = rand.float(f32) * (2.0 * limit) - limit;
+                for (w_data.data) |*val| val.* = rand.float(f32) * (2.0 * limit) - limit;
             },
             .HeNormal => {
                 const std_dev = @sqrt(2.0 / @as(f32, @floatFromInt(input_dim)));
-                for (w.data) |*val| val.* = rand.floatNorm(f32) * std_dev;
+                for (w_data.data) |*val| val.* = rand.floatNorm(f32) * std_dev;
             },
         }
 
-        const b = try NDArray(f32).zeros(allocator, &.{output_dim});
+        const w = try Tensor(f32).init(allocator, w_data, true);
+        errdefer w.deinit(allocator);
 
-        return Dense{ .weights = w, .bias = b };
+        const b_data = try NDArray(f32).zeros(allocator, &.{output_dim});
+        const b = try Tensor(f32).init(allocator, b_data, true);
+
+        return Dense{ .weights = w, .bias = b, .training = true };
     }
 
     /// Deinitializes the layer, freeing associated memory.
-    pub fn deinit(self: *Dense) void {
-        self.weights.deinit();
-        self.bias.deinit();
+    pub fn deinit(self: *Dense, allocator: Allocator) void {
+        self.weights.deinit(allocator);
+        self.bias.deinit(allocator);
+    }
+
+    /// Sets the layer to training mode.
+    pub fn train(self: *Dense) void {
+        self.training = true;
+    }
+
+    /// Sets the layer to evaluation mode.
+    pub fn eval(self: *Dense) void {
+        self.training = false;
     }
 
     /// Performs the forward pass of the layer.
@@ -88,23 +105,118 @@ pub const Dense = struct {
     /// Example:
     /// ```zig
     /// var output = try layer.forward(allocator, &input);
-    /// defer output.deinit();
+    /// defer output.deinit(allocator);
     /// ```
-    pub fn forward(self: *Dense, allocator: Allocator, input: *const NDArray(f32)) !NDArray(f32) {
-        // input (batch, in) * weights (in, out)
-        const z = try linalg.matmul(f32, allocator, input, &self.weights);
+    pub fn forward(self: *Dense, allocator: Allocator, input: *Tensor(f32)) !*Tensor(f32) {
+        const z = try input.matmul(allocator, self.weights);
+        return z.add(allocator, self.bias);
+    }
 
-        // Add bias
-        const out_dim = self.bias.shape[0];
+    /// Saves the layer weights and biases to a writer.
+    pub fn save(self: Dense, allocator: Allocator, writer: anytype) !void {
+        try io.writeArray(allocator, f32, self.weights.data, writer);
+        try io.writeArray(allocator, f32, self.bias.data, writer);
+    }
 
-        // Broadcast bias across batch
-        // Optimization: Check if we can use a more efficient broadcast add
-        // For now, manual loop is fine but ensure it's safe
-        for (z.data, 0..) |*val, i| {
-            const col = i % out_dim;
-            val.* += self.bias.data[col];
+    /// Loads a Dense layer from a reader.
+    pub fn load(allocator: Allocator, reader: anytype) !Dense {
+        const w_data = try io.readArray(allocator, f32, reader);
+        const b_data = try io.readArray(allocator, f32, reader);
+
+        const w = try Tensor(f32).init(allocator, w_data, true);
+        const b = try Tensor(f32).init(allocator, b_data, true);
+
+        return Dense{ .weights = w, .bias = b, .training = true };
+    }
+};
+
+pub const LayerType = enum {
+    Dense,
+    ReLU,
+    Sigmoid,
+    Tanh,
+    Softmax,
+};
+
+pub const Layer = union(LayerType) {
+    Dense: Dense,
+    ReLU: void,
+    Sigmoid: void,
+    Tanh: void,
+    Softmax: void,
+
+    pub fn forward(self: *Layer, allocator: Allocator, input: *Tensor(f32)) !*Tensor(f32) {
+        switch (self.*) {
+            .Dense => |*l| return l.forward(allocator, input),
+            .ReLU => return input.relu(allocator),
+            .Sigmoid => return input.sigmoid(allocator),
+            .Tanh => return input.tanh(allocator),
+            .Softmax => return input.softmax(allocator),
         }
-        return z;
+    }
+
+    pub fn train(self: *Layer) void {
+        switch (self.*) {
+            .Dense => |*l| l.train(),
+            else => {},
+        }
+    }
+
+    pub fn eval(self: *Layer) void {
+        switch (self.*) {
+            .Dense => |*l| l.eval(),
+            else => {},
+        }
+    }
+
+    pub fn deinit(self: *Layer, allocator: Allocator) void {
+        switch (self.*) {
+            .Dense => |*l| l.deinit(allocator),
+            else => {},
+        }
+    }
+
+    pub fn save(self: Layer, allocator: Allocator, writer: anytype) !void {
+        // Write layer type ID
+        const type_id = @intFromEnum(self);
+        var buf: [1]u8 = undefined;
+        std.mem.writeInt(u8, &buf, @intCast(type_id), .little);
+        try writer.writeAll(&buf);
+
+        switch (self) {
+            .Dense => |l| try l.save(allocator, writer),
+            else => {}, // No state for activations
+        }
+    }
+
+    pub fn load(allocator: Allocator, reader: anytype) !Layer {
+        var buf: [1]u8 = undefined;
+        if ((try reader.readAll(&buf)) != buf.len) return error.EndOfStream;
+        const type_id = std.mem.readInt(u8, &buf, .little);
+        const layer_type: LayerType = @enumFromInt(type_id);
+
+        switch (layer_type) {
+            .Dense => {
+                const l = try Dense.load(allocator, reader);
+                return Layer{ .Dense = l };
+            },
+            .ReLU => return Layer{ .ReLU = {} },
+            .Sigmoid => return Layer{ .Sigmoid = {} },
+            .Tanh => return Layer{ .Tanh = {} },
+            .Softmax => return Layer{ .Softmax = {} },
+        }
+    }
+
+    pub fn parameters(self: *Layer, allocator: Allocator) !std.ArrayListUnmanaged(*Tensor(f32)) {
+        var list = std.ArrayListUnmanaged(*Tensor(f32)){};
+        switch (self.*) {
+            .Dense => |*l| {
+                try list.append(allocator, l.weights);
+                try list.append(allocator, l.bias);
+            },
+            else => {},
+        }
+        return list;
     }
 };
 
@@ -240,20 +352,23 @@ pub const Dropout = struct {
 };
 
 test "ml layers dense forward" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     var layer = try Dense.init(allocator, 2, 1, .XavierUniform);
-    defer layer.deinit();
-    layer.weights.fill(0.01);
-    layer.bias.fill(0.0);
+    defer layer.deinit(allocator);
+    layer.weights.data.fill(0.01);
+    layer.bias.data.fill(0.0);
 
     // Weights initialized to 0.01, bias 0
     // Input [1, 1] -> 1*0.01 + 1*0.01 = 0.02
-    var input = try NDArray(f32).init(allocator, &.{ 1, 2 });
-    defer input.deinit();
-    input.fill(1.0);
+    var input_data = try NDArray(f32).init(allocator, &.{ 1, 2 });
+    input_data.fill(1.0);
+    var input = try Tensor(f32).init(allocator, input_data, false);
+    defer input.deinit(allocator);
 
-    var out = try layer.forward(allocator, &input);
-    defer out.deinit();
+    var out = try layer.forward(allocator, input);
+    defer out.deinit(allocator);
 
-    try std.testing.expectApproxEqAbs((try out.get(&.{ 0, 0 })), 0.02, 1e-4);
+    try std.testing.expectApproxEqAbs((try out.data.get(&.{ 0, 0 })), 0.02, 1e-4);
 }

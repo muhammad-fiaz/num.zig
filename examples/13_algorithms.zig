@@ -20,7 +20,7 @@ fn mainImpl() !void {
     // 1. Linear Search
     var a = try num.core.NDArray(f32).init(allocator, &.{5});
     @memcpy(a.data, &[_]f32{ 10.0, 20.0, 30.0, 40.0, 50.0 });
-    defer a.deinit();
+    defer a.deinit(allocator);
 
     if (try num.algo.search.linearSearch(allocator, f32, &a, 30.0)) |idx| {
         print("Linear Search: Found 30.0 at index {}\n", .{idx});
@@ -36,26 +36,26 @@ fn mainImpl() !void {
     }
 
     // 3. Linked List
-    var list = num.LinkedList(i32).init(allocator);
-    defer list.deinit();
+    var list = num.LinkedList(i32).init();
+    defer list.deinit(allocator);
 
-    try list.append(1);
-    try list.append(2);
-    try list.append(3);
+    try list.append(allocator, 1);
+    try list.append(allocator, 2);
+    try list.append(allocator, 3);
     print("Linked List: Appended 1, 2, 3\n", .{});
 
     if (list.find(2)) |_| {
         print("Linked List: Found 2\n", .{});
     }
 
-    if (list.delete(2)) {
+    if (list.delete(allocator, 2)) {
         print("Linked List: Deleted 2\n", .{});
     }
 
     // 4. Backtracking (Subset Sum)
     var set = try num.core.NDArray(i32).init(allocator, &.{6});
     @memcpy(set.data, &[_]i32{ 3, 34, 4, 12, 5, 2 });
-    defer set.deinit();
+    defer set.deinit(allocator);
     const target = 9;
 
     const exists = try num.algo.backtracking.subsetSum(allocator, &set, target);
@@ -69,23 +69,23 @@ fn mainImpl() !void {
     print("Doubly Linked List: Prepend 5, Append 10\n", .{});
 
     // 6. Stack
-    var stack = num.Stack(i32).init(allocator);
-    defer stack.deinit();
-    try stack.push(1);
-    try stack.push(2);
+    var stack = num.Stack(i32).init();
+    defer stack.deinit(allocator);
+    try stack.push(allocator, 1);
+    try stack.push(allocator, 2);
     print("Stack: Pop {}\n", .{stack.pop().?}); // 2
 
     // 7. Graph BFS
-    var graph = num.Graph(i32).init(allocator);
-    defer graph.deinit();
-    try graph.addEdge(0, 1);
-    try graph.addEdge(0, 2);
-    try graph.addEdge(1, 2);
-    try graph.addEdge(2, 0);
-    try graph.addEdge(2, 3);
-    try graph.addEdge(3, 3);
+    var graph = num.Graph(i32).init();
+    defer graph.deinit(allocator);
+    try graph.addEdge(allocator, 0, 1);
+    try graph.addEdge(allocator, 0, 2);
+    try graph.addEdge(allocator, 1, 2);
+    try graph.addEdge(allocator, 2, 0);
+    try graph.addEdge(allocator, 2, 3);
+    try graph.addEdge(allocator, 3, 3);
 
-    var bfs_res = try graph.bfs(2);
+    var bfs_res = try graph.bfs(allocator, 2);
     defer bfs_res.deinit(allocator);
     print("Graph BFS from 2: ", .{});
     for (bfs_res.items) |v| print("{} ", .{v});

@@ -1,57 +1,55 @@
-# Input/Output
+# Input/Output API Reference
 
-The `io` module provides functions for saving and loading arrays to disk.
+The `io` module provides functions for reading and writing arrays to disk.
 
-## Functions
+## Binary I/O
 
-### `save`
+### save
 
-Saves an `NDArray` to a binary file.
+Save an array to a binary file.
 
 ```zig
-pub fn save(comptime T: type, arr: NDArray(T), path: []const u8) !void
+pub fn save(allocator: Allocator, comptime T: type, arr: NDArray(T), path: []const u8) !void
 ```
 
-**Parameters:**
-- `T`: Data type of the array.
-- `arr`: The `NDArray` to save.
-- `path`: File path.
+### load
 
-**Description:**
-Writes a binary file with a header containing magic bytes, version, rank, and shape, followed by the raw data bytes.
-
-### `load`
-
-Loads an `NDArray` from a binary file.
+Load an array from a binary file.
 
 ```zig
 pub fn load(allocator: Allocator, comptime T: type, path: []const u8) !NDArray(T)
 ```
 
-**Parameters:**
-- `allocator`: Memory allocator.
-- `T`: Data type of the array.
-- `path`: File path.
+### writeArray
 
-**Returns:**
-- A new `NDArray` containing the loaded data.
-
-## Example
+Write an array to a writer.
 
 ```zig
-const std = @import("std");
-const num = @import("num");
+pub fn writeArray(allocator: Allocator, comptime T: type, arr: NDArray(T), writer: anytype) !void
+```
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+### readArray
 
-    // Create and save
-    var a = try num.NDArray(f64).init(allocator, &.{2, 2});
-    try num.io.save(f64, a, "matrix.bin");
+Read an array from a reader.
 
-    // Load
-    var b = try num.io.load(allocator, f64, "matrix.bin");
-    defer b.deinit();
-}
+```zig
+pub fn readArray(allocator: Allocator, comptime T: type, reader: anytype) !NDArray(T)
+```
+
+## Text I/O
+
+### writeCSV
+
+Write an array to a CSV file.
+
+```zig
+pub fn writeCSV(comptime T: type, arr: NDArray(T), path: []const u8) !void
+```
+
+### readCSV
+
+Read an array from a CSV file.
+
+```zig
+pub fn readCSV(allocator: Allocator, comptime T: type, path: []const u8) !NDArray(T)
 ```

@@ -12,21 +12,19 @@ pub fn Stack(comptime T: type) type {
         const Self = @This();
 
         items: std.ArrayListUnmanaged(T),
-        allocator: Allocator,
 
-        pub fn init(allocator: Allocator) Self {
+        pub fn init() Self {
             return .{
                 .items = .{},
-                .allocator = allocator,
             };
         }
 
-        pub fn deinit(self: *Self) void {
-            self.items.deinit(self.allocator);
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.items.deinit(allocator);
         }
 
-        pub fn push(self: *Self, value: T) !void {
-            try self.items.append(self.allocator, value);
+        pub fn push(self: *Self, allocator: Allocator, value: T) !void {
+            try self.items.append(allocator, value);
         }
 
         pub fn pop(self: *Self) ?T {
@@ -43,4 +41,21 @@ pub fn Stack(comptime T: type) type {
             return self.items.items.len == 0;
         }
     };
+}
+
+test "stack" {
+    const allocator = std.testing.allocator;
+    var s = Stack(i32).init();
+    defer s.deinit(allocator);
+
+    try std.testing.expect(s.isEmpty());
+
+    try s.push(allocator, 10);
+    try s.push(allocator, 20);
+
+    try std.testing.expect(!s.isEmpty());
+    try std.testing.expectEqual(s.peek(), 20);
+    try std.testing.expectEqual(s.pop(), 20);
+    try std.testing.expectEqual(s.pop(), 10);
+    try std.testing.expectEqual(s.pop(), null);
 }

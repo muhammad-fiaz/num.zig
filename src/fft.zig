@@ -90,12 +90,11 @@ pub const FFT = struct {
     /// // result is approx {1+0i, 1+0i, 1+0i, 1+0i}
     /// ```
     pub fn ifft(allocator: std.mem.Allocator, input: *const NDArray(Complex(f32))) !NDArray(Complex(f32)) {
-        _ = allocator;
         if (input.shape.len != 1) return error.NotImplemented;
         const n = input.shape[0];
         if (!std.math.isPowerOfTwo(n)) return error.InvalidShape;
 
-        var output = try input.copy();
+        var output = try input.copy(allocator);
 
         bit_reverse_permutation(output.data);
         // Butterfly operations
@@ -262,13 +261,30 @@ pub const FFT = struct {
 test "fft basic" {
     const allocator = std.testing.allocator;
     var a = try NDArray(f32).init(allocator, &.{4});
-    defer a.deinit();
+    defer a.deinit(allocator);
     // [1, 1, 1, 1] -> FFT -> [4, 0, 0, 0]
     a.fill(1.0);
 
     var res = try FFT.fft(allocator, &a);
-    defer res.deinit();
+    defer res.deinit(allocator);
 
     try std.testing.expectApproxEqAbs(res.data[0].re, 4.0, 1e-4);
     try std.testing.expectApproxEqAbs(res.data[1].re, 0.0, 1e-4);
+}
+
+test "fft ifft" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(Complex(f32)).init(allocator, &.{4});
+    defer a.deinit(allocator);
+    a.fill(Complex(f32).init(0, 0));
+    a.data[0] = Complex(f32).init(4.0, 0.0);
+
+    var res = try FFT.ifft(allocator, &a);
+    defer res.deinit(allocator);
+
+    // Should be [1, 1, 1, 1]
+    try std.testing.expectApproxEqAbs(res.data[0].re, 1.0, 1e-4);
+    try std.testing.expectApproxEqAbs(res.data[1].re, 1.0, 1e-4);
+    try std.testing.expectApproxEqAbs(res.data[2].re, 1.0, 1e-4);
+    try std.testing.expectApproxEqAbs(res.data[3].re, 1.0, 1e-4);
 }

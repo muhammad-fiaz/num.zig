@@ -111,7 +111,6 @@ pub fn slice(allocator: Allocator, comptime T: type, arr: NDArray(T), slices: []
     }
 
     return NDArray(T){
-        .allocator = allocator,
         .data = arr.data[data_offset..],
         .shape = new_shape,
         .strides = new_strides,
@@ -151,18 +150,18 @@ pub fn where(allocator: Allocator, comptime T: type, condition: NDArray(bool), x
     const final_shape = try core.broadcastShape(allocator, shape1, y.shape);
     defer allocator.free(final_shape);
 
-    var cond_b = try condition.broadcastTo(final_shape);
-    defer cond_b.deinit();
-    var x_b = try x.broadcastTo(final_shape);
-    defer x_b.deinit();
-    var y_b = try y.broadcastTo(final_shape);
-    defer y_b.deinit();
+    var cond_b = try condition.broadcastTo(allocator, final_shape);
+    defer cond_b.deinit(allocator);
+    var x_b = try x.broadcastTo(allocator, final_shape);
+    defer x_b.deinit(allocator);
+    var y_b = try y.broadcastTo(allocator, final_shape);
+    defer y_b.deinit(allocator);
 
     var result = try NDArray(T).init(allocator, final_shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     var iter = try core.NdIterator.init(allocator, final_shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var i: usize = 0;
     while (iter.next()) |coords| {
@@ -192,7 +191,7 @@ pub fn booleanMask(allocator: Allocator, comptime T: type, arr: NDArray(T), mask
         }
     } else {
         var iter = try core.NdIterator.init(allocator, mask.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         while (iter.next()) |coords| {
             if (try mask.get(coords)) count += 1;
         }
@@ -212,7 +211,7 @@ pub fn booleanMask(allocator: Allocator, comptime T: type, arr: NDArray(T), mask
     } else {
         // Use iterator
         var iter = try core.NdIterator.init(allocator, arr.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         while (iter.next()) |coords| {
             const mask_val = try mask.get(coords);
@@ -251,13 +250,13 @@ pub fn take(allocator: Allocator, comptime T: type, arr: NDArray(T), indices: ND
     new_shape[axis] = num_indices;
 
     var result = try NDArray(T).init(allocator, new_shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     var src_coords = try allocator.alloc(usize, arr.rank());
     defer allocator.free(src_coords);
 
     var iter = try core.NdIterator.init(allocator, result.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         @memcpy(src_coords, coords);
@@ -273,4 +272,43 @@ pub fn take(allocator: Allocator, comptime T: type, arr: NDArray(T), indices: ND
     }
 
     return result;
+}
+
+test "indexing slice" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{5});
+    defer arr.deinit(allocator);
+    for (0..5) |i| arr.data[i] = @floatFromInt(i);
+
+    const slices = &[_]Slice{
+        .{ .range = .{ .start = 1, .end = 4, .step = 2 } },
+    };
+    var view = try slice(allocator, f32, arr, slices);
+    defer view.deinit(allocator);
+
+    // 1, 3
+    try std.testing.expectEqual(view.shape[0], 2);
+    try std.testing.expectEqual(try view.get(&.{0}), 1.0);
+    try std.testing.expectEqual(try view.get(&.{1}), 3.0);
+}
+
+test "indexing take" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{5});
+    defer arr.deinit(allocator);
+    for (0..5) |i| arr.data[i] = @floatFromInt(i);
+
+    var indices = try NDArray(usize).init(allocator, &.{3});
+    defer indices.deinit(allocator);
+    try indices.set(&.{0}, 0);
+    try indices.set(&.{1}, 4);
+    try indices.set(&.{2}, 2);
+
+    var taken = try take(allocator, f32, arr, indices, 0);
+    defer taken.deinit(allocator);
+
+    try std.testing.expectEqual(taken.shape[0], 3);
+    try std.testing.expectEqual(try taken.get(&.{0}), 0.0);
+    try std.testing.expectEqual(try taken.get(&.{1}), 4.0);
+    try std.testing.expectEqual(try taken.get(&.{2}), 2.0);
 }

@@ -139,3 +139,30 @@ test "broadcast strides" {
     try std.testing.expectEqual(strides[1], 1);
     try std.testing.expectEqual(strides[2], 0);
 }
+
+test "broadcast shapes" {
+    const allocator = std.testing.allocator;
+    const s1 = [_]usize{ 3, 1 };
+    const s2 = [_]usize{ 1, 4 };
+    const shapes = [_][]const usize{ &s1, &s2 };
+
+    const res = try broadcastShapes(allocator, &shapes);
+    defer allocator.free(res);
+
+    try std.testing.expectEqual(res.len, 2);
+    try std.testing.expectEqual(res[0], 3);
+    try std.testing.expectEqual(res[1], 4);
+}
+
+test "broadcast iterator" {
+    const allocator = std.testing.allocator;
+    const shape = [_]usize{ 2, 2 };
+    var iter = try BroadcastIterator.init(allocator, &shape);
+    defer iter.deinit();
+
+    var count: usize = 0;
+    while (iter.next()) |_| {
+        count += 1;
+    }
+    try std.testing.expectEqual(count, 4);
+}

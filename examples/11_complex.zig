@@ -12,7 +12,7 @@ pub fn main() !void {
 
     // Create a complex array
     var a = try NDArray(Complex(f32)).init(allocator, &.{2});
-    defer a.deinit();
+    defer a.deinit(allocator);
 
     a.data[0] = Complex(f32).init(1.0, 2.0); // 1 + 2i
     a.data[1] = Complex(f32).init(3.0, 4.0); // 3 + 4i
@@ -24,7 +24,7 @@ pub fn main() !void {
 
     // Real part
     var re = try num.complex.real(allocator, f32, a);
-    defer re.deinit();
+    defer re.deinit(allocator);
     std.debug.print("\nReal Part:\n", .{});
     for (re.data) |val| {
         std.debug.print("{d:.1} ", .{val});
@@ -33,7 +33,7 @@ pub fn main() !void {
 
     // Imaginary part
     var im = try num.complex.imag(allocator, f32, a);
-    defer im.deinit();
+    defer im.deinit(allocator);
     std.debug.print("\nImaginary Part:\n", .{});
     for (im.data) |val| {
         std.debug.print("{d:.1} ", .{val});
@@ -42,7 +42,7 @@ pub fn main() !void {
 
     // Magnitude (Abs)
     var mag = try num.complex.abs(allocator, f32, a);
-    defer mag.deinit();
+    defer mag.deinit(allocator);
     std.debug.print("\nMagnitude:\n", .{});
     for (mag.data) |val| {
         std.debug.print("{d:.4} ", .{val});
@@ -51,7 +51,7 @@ pub fn main() !void {
 
     // Conjugate
     var conj = try num.complex.conj(allocator, f32, a);
-    defer conj.deinit();
+    defer conj.deinit(allocator);
     std.debug.print("\nConjugate:\n", .{});
     for (conj.data) |val| {
         std.debug.print("{d:.1} + {d:.1}i\n", .{ val.re, val.im });

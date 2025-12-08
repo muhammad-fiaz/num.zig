@@ -175,7 +175,6 @@ pub fn trace(comptime T: type, a: *const NDArray(T)) !T {
 /// // x is {2.0, 1.0}
 /// ```
 pub fn solve(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *const NDArray(T)) !NDArray(T) {
-    _ = allocator;
     if (a.rank() != 2) return core.Error.RankMismatch;
     if (a.shape[0] != a.shape[1]) return core.Error.DimensionMismatch; // Must be square
     if (b.shape[0] != a.shape[0]) return core.Error.ShapeMismatch;
@@ -184,12 +183,12 @@ pub fn solve(comptime T: type, allocator: Allocator, a: *const NDArray(T), b: *c
 
     // Create augmented matrix [A|b] or just work on copies.
     // Let's copy A and b.
-    var A_copy = try a.copy();
-    defer A_copy.deinit();
+    var A_copy = try a.copy(allocator);
+    defer A_copy.deinit(allocator);
 
     // b can be 1D or 2D. If 1D, treat as column vector.
-    var x = try b.copy();
-    errdefer x.deinit();
+    var x = try b.copy(allocator);
+    errdefer x.deinit(allocator);
     // If b is 1D, we solve for vector x. If 2D, we solve for matrix X.
     // Gaussian elimination works for both if we apply ops to rows of b/x.
 
@@ -425,7 +424,7 @@ pub fn norm(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !T {
 
     // Use iterator to handle non-contiguous arrays
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         const val = try a.get(coords);
@@ -464,9 +463,9 @@ pub fn qr(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !struct 
     const k = @min(m, n);
 
     var Q_res = try NDArray(T).zeros(allocator, &.{ m, k });
-    errdefer Q_res.deinit();
+    errdefer Q_res.deinit(allocator);
     var R_res = try NDArray(T).zeros(allocator, &.{ k, n });
-    errdefer R_res.deinit();
+    errdefer R_res.deinit(allocator);
 
     // Extract column i of A into v
     for (0..k) |i| {
@@ -531,19 +530,19 @@ test "linalg solve system" {
     // x + y = 3
     // Solution: x=2, y=1
     var a = try NDArray(f32).init(allocator, &.{ 2, 2 });
-    defer a.deinit();
+    defer a.deinit(allocator);
     try a.set(&.{ 0, 0 }, 2);
     try a.set(&.{ 0, 1 }, 1);
     try a.set(&.{ 1, 0 }, 1);
     try a.set(&.{ 1, 1 }, 1);
 
     var b = try NDArray(f32).init(allocator, &.{2});
-    defer b.deinit();
+    defer b.deinit(allocator);
     try b.set(&.{0}, 5);
     try b.set(&.{1}, 3);
 
     var x = try solve(f32, allocator, &a, &b);
-    defer x.deinit();
+    defer x.deinit(allocator);
 
     try std.testing.expectApproxEqAbs((try x.get(&.{0})), 2.0, 1e-4);
     try std.testing.expectApproxEqAbs((try x.get(&.{1})), 1.0, 1e-4);
@@ -575,7 +574,7 @@ pub fn cholesky(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !N
 
     const n = a.shape[0];
     var L = try NDArray(T).zeros(allocator, &.{ n, n });
-    errdefer L.deinit();
+    errdefer L.deinit(allocator);
 
     for (0..n) |i| {
         for (0..i + 1) |j| {
@@ -630,17 +629,17 @@ pub fn eigvals(comptime T: type, allocator: Allocator, a: *const NDArray(T), max
     const n = a.shape[0];
 
     // Copy A
-    var Ak = try a.copy();
-    defer Ak.deinit();
+    var Ak = try a.copy(allocator);
+    defer Ak.deinit(allocator);
 
     for (0..max_iter) |_| {
         var qr_res = try qr(T, allocator, &Ak);
-        defer qr_res.q.deinit();
-        defer qr_res.r.deinit();
+        defer qr_res.q.deinit(allocator);
+        defer qr_res.r.deinit(allocator);
 
         // Ak+1 = R * Q
         const next_Ak = try matmul(T, allocator, &qr_res.r, &qr_res.q);
-        Ak.deinit();
+        Ak.deinit(allocator);
         Ak = next_Ak;
     }
 
@@ -659,9 +658,9 @@ pub fn EigResult(comptime T: type) type {
 
         const Self = @This();
 
-        pub fn deinit(self: *Self) void {
-            self.vals.deinit();
-            self.vecs.deinit();
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            self.vals.deinit(allocator);
+            self.vecs.deinit(allocator);
         }
     };
 }
@@ -694,26 +693,26 @@ pub fn eig(comptime T: type, allocator: Allocator, a: *const NDArray(T), max_ite
     const n = a.shape[0];
 
     // Copy A
-    var Ak = try a.copy();
-    defer Ak.deinit();
+    var Ak = try a.copy(allocator);
+    defer Ak.deinit(allocator);
 
     // Initialize V as identity
     var V = try NDArray(T).eye(allocator, n);
-    errdefer V.deinit();
+    errdefer V.deinit(allocator);
 
     for (0..max_iter) |_| {
         var qr_res = try qr(T, allocator, &Ak);
-        defer qr_res.q.deinit();
-        defer qr_res.r.deinit();
+        defer qr_res.q.deinit(allocator);
+        defer qr_res.r.deinit(allocator);
 
         // Ak+1 = R * Q
         const next_Ak = try matmul(T, allocator, &qr_res.r, &qr_res.q);
-        Ak.deinit();
+        Ak.deinit(allocator);
         Ak = next_Ak;
 
         // V = V * Q
         const next_V = try matmul(T, allocator, &V, &qr_res.q);
-        V.deinit();
+        V.deinit(allocator);
         V = next_V;
     }
 
@@ -748,32 +747,32 @@ pub fn svd(comptime T: type, allocator: Allocator, a: *const NDArray(T), max_ite
     if (a.rank() != 2) return core.Error.RankMismatch;
 
     // B = A^T * A
-    var at = try a.transpose();
-    defer at.deinit();
+    var at = try a.transpose(allocator);
+    defer at.deinit(allocator);
 
     var b = try matmul(T, allocator, &at, a);
-    defer b.deinit();
+    defer b.deinit(allocator);
 
     // Eig of B
     var eig_res = try eig(T, allocator, &b, max_iter);
-    defer eig_res.deinit();
+    defer eig_res.deinit(allocator);
 
     // Singular values are sqrt of eigenvalues
     var s = try NDArray(T).init(allocator, eig_res.vals.shape);
-    errdefer s.deinit();
+    errdefer s.deinit(allocator);
     for (s.data, 0..) |*val, i| {
         val.* = std.math.sqrt(@abs(eig_res.vals.data[i]));
     }
 
     // V is eigenvectors of A^T A
     // Vt is transpose of V
-    var vt = try eig_res.vecs.transpose();
-    errdefer vt.deinit();
+    var vt = try eig_res.vecs.transpose(allocator);
+    errdefer vt.deinit(allocator);
 
     // U = A * V * S^-1
     // S^-1
     var s_inv = try NDArray(T).init(allocator, s.shape);
-    defer s_inv.deinit();
+    defer s_inv.deinit(allocator);
     for (s_inv.data, 0..) |*val, i| {
         if (s.data[i] > 1e-6) {
             val.* = 1.0 / s.data[i];
@@ -784,14 +783,14 @@ pub fn svd(comptime T: type, allocator: Allocator, a: *const NDArray(T), max_ite
 
     // S^-1 as diagonal matrix
     var s_inv_mat = try NDArray(T).zeros(allocator, &.{ s.size(), s.size() });
-    defer s_inv_mat.deinit();
+    defer s_inv_mat.deinit(allocator);
     for (0..s.size()) |i| {
         try s_inv_mat.set(&.{ i, i }, s_inv.data[i]);
     }
 
     // A * V
     var av = try matmul(T, allocator, a, &eig_res.vecs);
-    defer av.deinit();
+    defer av.deinit(allocator);
 
     // U = (A * V) * S^-1
     const u = try matmul(T, allocator, &av, &s_inv_mat);
@@ -814,9 +813,9 @@ pub fn lu(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !struct 
 
     const n = a.shape[0];
     var L = try NDArray(T).eye(allocator, n);
-    errdefer L.deinit();
+    errdefer L.deinit(allocator);
     var U = try NDArray(T).zeros(allocator, &.{ n, n });
-    errdefer U.deinit();
+    errdefer U.deinit(allocator);
 
     // Doolittle Algorithm
     for (0..n) |i| {
@@ -846,4 +845,55 @@ pub fn lu(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !struct 
     }
 
     return .{ .l = L, .u = U };
+}
+
+test "linalg dot" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{3});
+    defer a.deinit(allocator);
+    a.fill(1.0);
+    var b = try NDArray(f32).init(allocator, &.{3});
+    defer b.deinit(allocator);
+    b.fill(2.0);
+
+    const d = try dot(f32, allocator, &a, &b);
+    try std.testing.expectEqual(d, 6.0);
+}
+
+test "linalg matmul" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).eye(allocator, 2);
+    defer a.deinit(allocator);
+    var b = try NDArray(f32).full(allocator, &.{ 2, 2 }, 2.0);
+    defer b.deinit(allocator);
+
+    var c = try matmul(f32, allocator, &a, &b);
+    defer c.deinit(allocator);
+
+    try std.testing.expectEqual(try c.get(&.{ 0, 0 }), 2.0);
+    try std.testing.expectEqual(try c.get(&.{ 0, 1 }), 2.0);
+    try std.testing.expectEqual(try c.get(&.{ 1, 0 }), 2.0);
+    try std.testing.expectEqual(try c.get(&.{ 1, 1 }), 2.0);
+}
+
+test "linalg lu" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{ 2, 2 });
+    defer a.deinit(allocator);
+    // 4 3
+    // 6 3
+    try a.set(&.{ 0, 0 }, 4.0);
+    try a.set(&.{ 0, 1 }, 3.0);
+    try a.set(&.{ 1, 0 }, 6.0);
+    try a.set(&.{ 1, 1 }, 3.0);
+
+    var res = try lu(f32, allocator, &a);
+    defer res.l.deinit(allocator);
+    defer res.u.deinit(allocator);
+
+    // L should be [[1, 0], [1.5, 1]]
+    // U should be [[4, 3], [0, -1.5]]
+    try std.testing.expectEqual(try res.l.get(&.{ 1, 0 }), 1.5);
+    try std.testing.expectEqual(try res.u.get(&.{ 0, 0 }), 4.0);
+    try std.testing.expectEqual(try res.u.get(&.{ 1, 1 }), -1.5);
 }

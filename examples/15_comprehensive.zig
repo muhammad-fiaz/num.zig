@@ -17,36 +17,36 @@ pub fn main() !void {
     // 2. Reduction
     std.debug.print("\n--- Reduction ---\n", .{});
     var arr = try num.NDArray(f64).init(allocator, &.{ 2, 2 });
-    defer arr.deinit();
+    defer arr.deinit(allocator);
     arr.data[0] = 1;
     arr.data[1] = 2;
     arr.data[2] = 3;
     arr.data[3] = 4;
 
     var sum_val = try num.reduction.sum(allocator, f64, arr, null);
-    defer sum_val.deinit();
+    defer sum_val.deinit(allocator);
     std.debug.print("Sum all: {d}\n", .{sum_val.data[0]});
 
     // 3. Sparse
     std.debug.print("\n--- Sparse ---\n", .{});
     var dense = try num.NDArray(f64).zeros(allocator, &.{ 3, 3 });
-    defer dense.deinit();
+    defer dense.deinit(allocator);
     try dense.set(&.{ 0, 0 }, 1.0);
     try dense.set(&.{ 2, 2 }, 5.0);
 
     var csr = try num.sparse.CSRMatrix(f64).fromDense(allocator, dense);
-    defer csr.deinit();
+    defer csr.deinit(allocator);
     std.debug.print("CSR NNZ: {d}\n", .{csr.values.items.len});
 
-    var back_dense = try csr.toDense();
-    defer back_dense.deinit();
+    var back_dense = try csr.toDense(allocator);
+    defer back_dense.deinit(allocator);
     std.debug.print("Back to dense (0,0): {d}\n", .{try back_dense.get(&.{ 0, 0 })});
 
     // 4. Autograd
     std.debug.print("\n--- Autograd ---\n", .{});
     const t_data = try num.NDArray(f64).zeros(allocator, &.{ 2, 2 });
     var t = try num.autograd.Tensor(f64).init(allocator, t_data, true);
-    defer t.deinit();
+    defer t.deinit(allocator);
     try t.backward();
     if (t.grad) |g| {
         std.debug.print("Grad (0,0): {d}\n", .{try g.get(&.{ 0, 0 })});
@@ -75,10 +75,10 @@ pub fn main() !void {
     std.debug.print("\n--- Optimize ---\n", .{});
     var opt = num.optimize.GradientDescent(f64).init(0.1);
     var param = try num.NDArray(f64).init(allocator, &.{1});
-    defer param.deinit();
+    defer param.deinit(allocator);
     param.data[0] = 5.0;
     var grad = try num.NDArray(f64).init(allocator, &.{1});
-    defer grad.deinit();
+    defer grad.deinit(allocator);
     grad.data[0] = 1.0;
 
     try opt.step(&param, grad);
@@ -87,7 +87,7 @@ pub fn main() !void {
     // 7. Sorting
     std.debug.print("\n--- Sorting ---\n", .{});
     var to_sort = try num.NDArray(f64).init(allocator, &.{5});
-    defer to_sort.deinit();
+    defer to_sort.deinit(allocator);
     to_sort.data[0] = 5;
     to_sort.data[1] = 1;
     to_sort.data[2] = 4;
@@ -95,46 +95,46 @@ pub fn main() !void {
     to_sort.data[4] = 8;
 
     var sorted_qs = try num.sort.sortByAlgo(allocator, f64, to_sort, 0, .QuickSort);
-    defer sorted_qs.deinit();
+    defer sorted_qs.deinit(allocator);
     std.debug.print("QuickSort: {d}, {d}, {d}, {d}, {d}\n", .{ sorted_qs.data[0], sorted_qs.data[1], sorted_qs.data[2], sorted_qs.data[3], sorted_qs.data[4] });
 
     // 8. Interpolation
     std.debug.print("\n--- Interpolation ---\n", .{});
     var x_interp = try num.NDArray(f64).init(allocator, &.{3});
-    defer x_interp.deinit();
+    defer x_interp.deinit(allocator);
     x_interp.data[0] = 0;
     x_interp.data[1] = 1;
     x_interp.data[2] = 2;
 
     var y_interp = try num.NDArray(f64).init(allocator, &.{3});
-    defer y_interp.deinit();
+    defer y_interp.deinit(allocator);
     y_interp.data[0] = 0;
     y_interp.data[1] = 10;
     y_interp.data[2] = 0;
 
     var xi = try num.NDArray(f64).init(allocator, &.{1});
-    defer xi.deinit();
+    defer xi.deinit(allocator);
     xi.data[0] = 0.5;
 
     var yi = try num.interpolate.interp1d(allocator, f64, x_interp, y_interp, xi);
-    defer yi.deinit();
+    defer yi.deinit(allocator);
     std.debug.print("Interp at 0.5: {d}\n", .{yi.data[0]});
 
     // 9. Polynomial
     std.debug.print("\n--- Polynomial ---\n", .{});
     var p_coeffs = try num.NDArray(f64).init(allocator, &.{3});
-    defer p_coeffs.deinit();
+    defer p_coeffs.deinit(allocator);
     p_coeffs.data[0] = 1; // x^2
     p_coeffs.data[1] = 0; // x
     p_coeffs.data[2] = -1; // constant
     // x^2 - 1
 
     var x_poly = try num.NDArray(f64).init(allocator, &.{1});
-    defer x_poly.deinit();
+    defer x_poly.deinit(allocator);
     x_poly.data[0] = 2.0;
 
     var y_poly = try num.poly.polyval(allocator, f64, p_coeffs, x_poly);
-    defer y_poly.deinit();
+    defer y_poly.deinit(allocator);
     std.debug.print("Polyval(2.0): {d}\n", .{y_poly.data[0]});
 
     // 10. Complex
@@ -147,20 +147,20 @@ pub fn main() !void {
     // 11. FFT
     std.debug.print("\n--- FFT ---\n", .{});
     var fft_in = try num.NDArray(f32).init(allocator, &.{4});
-    defer fft_in.deinit();
+    defer fft_in.deinit(allocator);
     fft_in.data[0] = 1.0;
     fft_in.data[1] = 1.0;
     fft_in.data[2] = 1.0;
     fft_in.data[3] = 1.0;
 
     var fft_out = try num.fft.FFT.fft(allocator, &fft_in);
-    defer fft_out.deinit();
+    defer fft_out.deinit(allocator);
     std.debug.print("FFT[0]: {d} + {d}i\n", .{ fft_out.data[0].re, fft_out.data[0].im });
 
     // 12. Signal
     std.debug.print("\n--- Signal ---\n", .{});
     var sig_in = try num.NDArray(f64).init(allocator, &.{5});
-    defer sig_in.deinit();
+    defer sig_in.deinit(allocator);
     sig_in.data[0] = 1;
     sig_in.data[1] = 2;
     sig_in.data[2] = 3;
@@ -168,48 +168,48 @@ pub fn main() !void {
     sig_in.data[4] = 5;
 
     var kernel = try num.NDArray(f64).init(allocator, &.{3});
-    defer kernel.deinit();
+    defer kernel.deinit(allocator);
     kernel.data[0] = 0.5;
     kernel.data[1] = 1.0;
     kernel.data[2] = 0.5;
 
     var conv_res = try num.signal.convolve(allocator, f64, sig_in, kernel, .same);
-    defer conv_res.deinit();
+    defer conv_res.deinit(allocator);
     std.debug.print("Convolve center: {d}\n", .{conv_res.data[2]});
 
     // 13. SetOps
     std.debug.print("\n--- SetOps ---\n", .{});
     var set_a = try num.NDArray(f64).init(allocator, &.{3});
-    defer set_a.deinit();
+    defer set_a.deinit(allocator);
     set_a.data[0] = 1;
     set_a.data[1] = 2;
     set_a.data[2] = 3;
 
     var set_b = try num.NDArray(f64).init(allocator, &.{3});
-    defer set_b.deinit();
+    defer set_b.deinit(allocator);
     set_b.data[0] = 2;
     set_b.data[1] = 3;
     set_b.data[2] = 4;
 
     var set_union = try num.setops.union1d(allocator, f64, set_a, set_b);
-    defer set_union.deinit();
+    defer set_union.deinit(allocator);
     std.debug.print("Union len: {d}\n", .{set_union.shape[0]});
 
     // 14. IO
     std.debug.print("\n--- IO ---\n", .{});
     const filename = "test_io_comprehensive.npy";
     var io_arr = try num.NDArray(f64).init(allocator, &.{ 2, 2 });
-    defer io_arr.deinit();
+    defer io_arr.deinit(allocator);
     io_arr.data[0] = 1.1;
     io_arr.data[1] = 2.2;
     io_arr.data[2] = 3.3;
     io_arr.data[3] = 4.4;
 
-    try num.io.save(f64, io_arr, filename);
+    try num.io.save(allocator, f64, io_arr, filename);
     std.debug.print("Saved {s}\n", .{filename});
 
     var loaded_arr = try num.io.load(allocator, f64, filename);
-    defer loaded_arr.deinit();
+    defer loaded_arr.deinit(allocator);
     std.debug.print("Loaded (0,0): {d}\n", .{loaded_arr.data[0]});
 
     // Cleanup

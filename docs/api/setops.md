@@ -1,10 +1,10 @@
-# Set Operations
+# Set Operations API Reference
 
-The `setops` module provides set operations for arrays.
+The `setops` module provides set operations for 1D arrays.
 
 ## Functions
 
-### `unique`
+### unique
 
 Find the unique elements of an array.
 
@@ -12,10 +12,7 @@ Find the unique elements of an array.
 pub fn unique(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(T)
 ```
 
-**Returns:**
-- Sorted unique elements.
-
-### `in1d`
+### in1d
 
 Test whether each element of a 1-D array is also present in a second array.
 
@@ -23,7 +20,7 @@ Test whether each element of a 1-D array is also present in a second array.
 pub fn in1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(bool)
 ```
 
-### `intersect1d`
+### intersect1d
 
 Find the intersection of two arrays.
 
@@ -31,7 +28,7 @@ Find the intersection of two arrays.
 pub fn intersect1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T)
 ```
 
-### `union1d`
+### union1d
 
 Find the union of two arrays.
 
@@ -39,7 +36,7 @@ Find the union of two arrays.
 pub fn union1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T)
 ```
 
-### `setdiff1d`
+### setdiff1d
 
 Find the set difference of two arrays.
 
@@ -47,28 +44,10 @@ Find the set difference of two arrays.
 pub fn setdiff1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T)
 ```
 
-### `setxor1d`
+### setxor1d
 
 Find the set exclusive-or of two arrays.
 
 ```zig
 pub fn setxor1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T)
-```
-
-## Example
-
-```zig
-const std = @import("std");
-const num = @import("num");
-const setops = num.setops;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var a = try num.NDArray(i32).init(allocator, &.{4}, &.{1, 2, 3, 2});
-    var u = try setops.unique(allocator, i32, a);
-    defer u.deinit();
-    // u is {1, 2, 3}
-}
 ```

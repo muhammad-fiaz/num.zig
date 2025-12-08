@@ -15,15 +15,15 @@ const Allocator = std.mem.Allocator;
 /// Returns:
 ///     The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
 pub fn diff(allocator: Allocator, comptime T: type, a: NDArray(T), n: usize, axis: usize) !NDArray(T) {
-    if (n == 0) return a.copy();
+    if (n == 0) return a.copy(allocator);
     if (axis >= a.rank()) return core.Error.IndexOutOfBounds;
     if (a.shape[axis] < n) return core.Error.DimensionMismatch;
 
-    var current = try a.copy();
+    var current = try a.copy(allocator);
 
     for (0..n) |_| {
         var prev = current;
-        defer prev.deinit();
+        defer prev.deinit(allocator);
 
         // Calculate difference along axis
         // New shape has dim - 1 along axis
@@ -33,12 +33,12 @@ pub fn diff(allocator: Allocator, comptime T: type, a: NDArray(T), n: usize, axi
         new_shape[axis] -= 1;
 
         current = try NDArray(T).init(allocator, new_shape);
-        errdefer current.deinit();
+        errdefer current.deinit(allocator);
         allocator.free(new_shape);
 
         // Iterate over result
         var iter = try core.NdIterator.init(allocator, current.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         const src_coords_1 = try allocator.alloc(usize, prev.rank());
         defer allocator.free(src_coords_1);
@@ -72,13 +72,13 @@ pub fn gradient(allocator: Allocator, comptime T: type, a: NDArray(T), axis: usi
     if (axis >= a.rank()) return core.Error.IndexOutOfBounds;
 
     var result = try NDArray(T).init(allocator, a.shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     const dim_size = a.shape[axis];
     if (dim_size < 2) return core.Error.DimensionMismatch;
 
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var coords_prev = try allocator.alloc(usize, a.rank());
     defer allocator.free(coords_prev);
@@ -116,4 +116,53 @@ pub fn gradient(allocator: Allocator, comptime T: type, a: NDArray(T), axis: usi
     }
 
     return result;
+}
+
+test "diff" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{5});
+    defer arr.deinit(allocator);
+    // 1, 2, 4, 7, 0
+    try arr.set(&.{0}, 1.0);
+    try arr.set(&.{1}, 2.0);
+    try arr.set(&.{2}, 4.0);
+    try arr.set(&.{3}, 7.0);
+    try arr.set(&.{4}, 0.0);
+
+    var d1 = try diff(allocator, f32, arr, 1, 0);
+    defer d1.deinit(allocator);
+    // 1, 2, 3, -7
+    try std.testing.expectEqual(d1.shape[0], 4);
+    try std.testing.expectEqual(try d1.get(&.{0}), 1.0);
+    try std.testing.expectEqual(try d1.get(&.{1}), 2.0);
+    try std.testing.expectEqual(try d1.get(&.{2}), 3.0);
+    try std.testing.expectEqual(try d1.get(&.{3}), -7.0);
+
+    var d2 = try diff(allocator, f32, arr, 2, 0);
+    defer d2.deinit(allocator);
+    // 1, 1, -10
+    try std.testing.expectEqual(d2.shape[0], 3);
+    try std.testing.expectEqual(try d2.get(&.{0}), 1.0);
+    try std.testing.expectEqual(try d2.get(&.{1}), 1.0);
+    try std.testing.expectEqual(try d2.get(&.{2}), -10.0);
+}
+
+test "gradient" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{3});
+    defer arr.deinit(allocator);
+    // 1, 2, 4
+    try arr.set(&.{0}, 1.0);
+    try arr.set(&.{1}, 2.0);
+    try arr.set(&.{2}, 4.0);
+
+    var g = try gradient(allocator, f32, arr, 0);
+    defer g.deinit(allocator);
+
+    // 0: (2-1) = 1
+    // 1: (4-1)/2 = 1.5
+    // 2: (4-2) = 2
+    try std.testing.expectEqual(try g.get(&.{0}), 1.0);
+    try std.testing.expectEqual(try g.get(&.{1}), 1.5);
+    try std.testing.expectEqual(try g.get(&.{2}), 2.0);
 }

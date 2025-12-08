@@ -39,7 +39,7 @@ pub fn subsetSum(allocator: Allocator, set: *const NDArray(i32), target: i32) !b
         errdefer allocator.free(temp_data);
 
         var iter = try core.NdIterator.init(allocator, set.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         var i: usize = 0;
         while (iter.next()) |coords| {
             temp_data[i] = try set.get(coords);
@@ -61,4 +61,18 @@ fn subsetSumRecursive(set: []const i32, sum: i32, n: usize) bool {
     }
 
     return subsetSumRecursive(set, sum, n - 1) or subsetSumRecursive(set, sum - set[n - 1], n - 1);
+}
+
+test "subset sum" {
+    const allocator = std.testing.allocator;
+    var set = try NDArray(i32).init(allocator, &.{5});
+    defer set.deinit(allocator);
+    set.data[0] = 3;
+    set.data[1] = 34;
+    set.data[2] = 4;
+    set.data[3] = 12;
+    set.data[4] = 5;
+
+    try std.testing.expect(try subsetSum(allocator, &set, 9)); // 4 + 5
+    try std.testing.expect(!(try subsetSum(allocator, &set, 30)));
 }

@@ -1,62 +1,37 @@
-# Indexing
+# Indexing API Reference
 
-The `indexing` module provides advanced slicing and indexing capabilities.
-
-## Structures
-
-### `Slice`
-
-Represents a slice operation on a dimension.
-
-```zig
-pub const Slice = union(enum) {
-    all: void,
-    index: usize,
-    range: struct { start: usize, end: usize, step: isize = 1 },
-};
-```
+The `indexing` module provides functions for advanced indexing and slicing.
 
 ## Functions
 
-### `slice`
+### slice
 
-Creates a view of the array using a sequence of slice operations.
+Extract a slice from an array.
 
 ```zig
 pub fn slice(allocator: Allocator, comptime T: type, arr: NDArray(T), slices: []const Slice) !NDArray(T)
 ```
 
-**Parameters:**
-- `allocator`: Memory allocator.
-- `T`: Data type.
-- `arr`: Input array.
-- `slices`: Slice operations.
+### where
 
-**Returns:**
-- A new `NDArray` view (shares data).
-
-## Example
+Return elements chosen from x or y depending on condition.
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const indexing = num.indexing;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var a = try num.NDArray(f32).arange(allocator, 0, 10, 1);
-    defer a.deinit();
-
-    // Slice: a[2:8:2]
-    const slices = &[_]indexing.Slice{
-        .{ .range = .{ .start = 2, .end = 8, .step = 2 } },
-    };
-    var view = try indexing.slice(allocator, f32, a, slices);
-    defer view.deinit();
-    
-    // view is {2, 4, 6}
-}
+pub fn where(allocator: Allocator, comptime T: type, condition: NDArray(bool), x: NDArray(T), y: NDArray(T)) !NDArray(T)
 ```
 
+### booleanMask
+
+Return elements of an array where a mask is true.
+
+```zig
+pub fn booleanMask(allocator: Allocator, comptime T: type, arr: NDArray(T), mask: NDArray(bool)) !NDArray(T)
+```
+
+### take
+
+Take elements from an array along an axis.
+
+```zig
+pub fn take(allocator: Allocator, comptime T: type, arr: NDArray(T), indices: NDArray(usize), axis: usize) !NDArray(T)
+```

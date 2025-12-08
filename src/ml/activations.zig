@@ -1,6 +1,8 @@
 const std = @import("std");
 const core = @import("../core.zig");
+const autograd = @import("../autograd/tensor.zig");
 const NDArray = core.NDArray;
+const Tensor = autograd.Tensor;
 const Allocator = std.mem.Allocator;
 
 fn apply(allocator: Allocator, a: *const NDArray(f32), context: anytype, op: anytype) !NDArray(f32) {
@@ -11,7 +13,7 @@ fn apply(allocator: Allocator, a: *const NDArray(f32), context: anytype, op: any
         }
     } else {
         var iter = try core.NdIterator.init(allocator, a.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         var i: usize = 0;
         while (iter.next()) |coords| {
             const val = try a.get(coords);
@@ -40,10 +42,10 @@ fn reluOp(_: void, val: f32) f32 {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{ -1.0, 0.0, 1.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var res = try activations.relu(allocator, &a);
-/// defer res.deinit();
+/// defer res.deinit(allocator);
 /// // res is {0.0, 0.0, 1.0}
 /// ```
 pub fn relu(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32) {
@@ -70,10 +72,10 @@ fn sigmoidOp(_: void, val: f32) f32 {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{ 0.0, 2.0, -2.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var res = try activations.sigmoid(allocator, &a);
-/// defer res.deinit();
+/// defer res.deinit(allocator);
 /// // res is {0.5, 0.8808, 0.1192}
 /// ```
 pub fn sigmoid(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32) {
@@ -100,10 +102,10 @@ fn tanhOp(_: void, val: f32) f32 {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{ 0.0, 1.0, -1.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var res = try activations.tanh(allocator, &a);
-/// defer res.deinit();
+/// defer res.deinit(allocator);
 /// // res is {0.0, 0.7616, -0.7616}
 /// ```
 pub fn tanh(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32) {
@@ -130,10 +132,10 @@ fn leakyReluOp(alpha: f32, val: f32) f32 {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{ -1.0, 0.0, 1.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var res = try activations.leakyRelu(allocator, &a, 0.01);
-/// defer res.deinit();
+/// defer res.deinit(allocator);
 /// // res is {-0.01, 0.0, 1.0}
 /// ```
 pub fn leakyRelu(allocator: Allocator, a: *const NDArray(f32), alpha: f32) !NDArray(f32) {
@@ -159,10 +161,10 @@ fn softplusOp(_: void, val: f32) f32 {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{ 0.0, 1.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var res = try activations.softplus(allocator, &a);
-/// defer res.deinit();
+/// defer res.deinit(allocator);
 /// // res is {0.6931, 1.3133}
 /// ```
 pub fn softplus(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32) {
@@ -186,10 +188,10 @@ pub fn softplus(allocator: Allocator, a: *const NDArray(f32)) !NDArray(f32) {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{2}, &.{ 1.0, 2.0 });
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var probs = try activations.softmax(allocator, &a, null);
-/// defer probs.deinit();
+/// defer probs.deinit(allocator);
 /// // probs is {0.2689, 0.7311}
 /// ```
 pub fn softmax(allocator: Allocator, a: *const NDArray(f32), axis_opt: ?usize) !NDArray(f32) {
@@ -267,18 +269,64 @@ pub fn softmax(allocator: Allocator, a: *const NDArray(f32), axis_opt: ?usize) !
     return result;
 }
 
+/// Computes the ReLU activation for a Tensor.
+pub fn reluTensor(allocator: Allocator, t: *Tensor(f32)) !*Tensor(f32) {
+    return t.relu(allocator);
+}
+
+/// Computes the Sigmoid activation for a Tensor.
+pub fn sigmoidTensor(allocator: Allocator, t: *Tensor(f32)) !*Tensor(f32) {
+    return t.sigmoid(allocator);
+}
+
+/// Computes the Tanh activation for a Tensor.
+pub fn tanhTensor(allocator: Allocator, t: *Tensor(f32)) !*Tensor(f32) {
+    return t.tanh(allocator);
+}
+
+/// Computes the Softmax activation for a Tensor.
+pub fn softmaxTensor(allocator: Allocator, t: *Tensor(f32)) !*Tensor(f32) {
+    return t.softmax(allocator);
+}
+
 test "ml activations relu" {
     const allocator = std.testing.allocator;
     var a = try NDArray(f32).init(allocator, &.{3});
-    defer a.deinit();
+    defer a.deinit(allocator);
     try a.set(&.{0}, -1.0);
     try a.set(&.{1}, 0.0);
     try a.set(&.{2}, 1.0);
 
     var res = try relu(allocator, &a);
-    defer res.deinit();
+    defer res.deinit(allocator);
 
     try std.testing.expectEqual(try res.get(&.{0}), 0.0);
     try std.testing.expectEqual(try res.get(&.{1}), 0.0);
     try std.testing.expectEqual(try res.get(&.{2}), 1.0);
+}
+
+test "ml activations sigmoid" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{1});
+    defer a.deinit(allocator);
+    try a.set(&.{0}, 0.0);
+
+    var res = try sigmoid(allocator, &a);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(try res.get(&.{0}), 0.5);
+}
+
+test "ml activations softmax" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{2});
+    defer a.deinit(allocator);
+    try a.set(&.{0}, 1.0);
+    try a.set(&.{1}, 1.0);
+
+    var res = try softmax(allocator, &a, 0);
+    defer res.deinit(allocator);
+
+    try std.testing.expectApproxEqAbs(try res.get(&.{0}), 0.5, 1e-6);
+    try std.testing.expectApproxEqAbs(try res.get(&.{1}), 0.5, 1e-6);
 }

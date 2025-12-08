@@ -15,11 +15,11 @@ const Allocator = std.mem.Allocator;
 ///     Sorted unique elements.
 pub fn unique(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(T) {
     // Flatten array first
-    var flat_tmp = try a.flatten();
-    defer flat_tmp.deinit();
+    var flat_tmp = try a.flatten(allocator);
+    defer flat_tmp.deinit(allocator);
 
-    var flat = try flat_tmp.copy();
-    defer flat.deinit();
+    var flat = try flat_tmp.copy(allocator);
+    defer flat.deinit(allocator);
 
     // Sort
     std.mem.sort(T, flat.data, {}, std.sort.asc(T));
@@ -52,14 +52,14 @@ pub fn unique(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(T)
 /// Returns a boolean array the same length as ar1 that is True where an element of ar1 is in ar2 and False otherwise.
 pub fn in1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(bool) {
     // Flatten both
-    var f1 = try ar1.flatten();
-    defer f1.deinit();
-    var f2 = try ar2.flatten();
-    defer f2.deinit();
+    var f1 = try ar1.flatten(allocator);
+    defer f1.deinit(allocator);
+    var f2 = try ar2.flatten(allocator);
+    defer f2.deinit(allocator);
 
     // Sort f2 for binary search
-    var f2_sorted = try f2.copy();
-    defer f2_sorted.deinit();
+    var f2_sorted = try f2.copy(allocator);
+    defer f2_sorted.deinit(allocator);
     std.mem.sort(T, f2_sorted.data, {}, std.sort.asc(T));
 
     var result = try NDArray(bool).init(allocator, f1.shape);
@@ -91,13 +91,13 @@ pub fn in1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArra
 /// Returns the sorted, unique values that are in both of the input arrays.
 pub fn intersect1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T) {
     var uniq1 = try unique(allocator, T, ar1);
-    defer uniq1.deinit();
+    defer uniq1.deinit(allocator);
     var uniq2 = try unique(allocator, T, ar2);
-    defer uniq2.deinit();
+    defer uniq2.deinit(allocator);
 
     // Both are sorted. Use merge-like approach.
-    var temp = try std.ArrayList(T).initCapacity(allocator, @min(uniq1.size(), uniq2.size()));
-    defer temp.deinit();
+    var temp = try std.ArrayListUnmanaged(T).initCapacity(allocator, @min(uniq1.size(), uniq2.size()));
+    defer temp.deinit(allocator);
 
     var i: usize = 0;
     var j: usize = 0;
@@ -107,13 +107,15 @@ pub fn intersect1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2:
         } else if (uniq1.data[i] > uniq2.data[j]) {
             j += 1;
         } else {
-            try temp.append(uniq1.data[i]);
+            try temp.append(allocator, uniq1.data[i]);
             i += 1;
             j += 1;
         }
     }
 
-    return NDArray(T).init(allocator, &.{temp.items.len}, temp.items);
+    const result = try NDArray(T).init(allocator, &.{temp.items.len});
+    @memcpy(result.data, temp.items);
+    return result;
 }
 
 /// Find the union of two arrays.
@@ -122,7 +124,7 @@ pub fn union1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDA
     // Concatenate and unique
     const size = ar1.size() + ar2.size();
     var concat = try NDArray(T).init(allocator, &.{size});
-    defer concat.deinit();
+    defer concat.deinit(allocator);
 
     @memcpy(concat.data[0..ar1.size()], ar1.data);
     @memcpy(concat.data[ar1.size()..], ar2.data);
@@ -134,18 +136,18 @@ pub fn union1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDA
 /// Return the unique values in ar1 that are not in ar2.
 pub fn setdiff1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T) {
     var uniq1 = try unique(allocator, T, ar1);
-    defer uniq1.deinit();
+    defer uniq1.deinit(allocator);
     var uniq2 = try unique(allocator, T, ar2);
-    defer uniq2.deinit();
+    defer uniq2.deinit(allocator);
 
-    var temp = try std.ArrayList(T).initCapacity(allocator, uniq1.size());
-    defer temp.deinit();
+    var temp = try std.ArrayListUnmanaged(T).initCapacity(allocator, uniq1.size());
+    defer temp.deinit(allocator);
 
     var i: usize = 0;
     var j: usize = 0;
     while (i < uniq1.size() and j < uniq2.size()) {
         if (uniq1.data[i] < uniq2.data[j]) {
-            try temp.append(uniq1.data[i]);
+            try temp.append(allocator, uniq1.data[i]);
             i += 1;
         } else if (uniq1.data[i] > uniq2.data[j]) {
             j += 1;
@@ -157,31 +159,33 @@ pub fn setdiff1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: N
     }
     // Append remaining
     while (i < uniq1.size()) : (i += 1) {
-        try temp.append(uniq1.data[i]);
+        try temp.append(allocator, uniq1.data[i]);
     }
 
-    return NDArray(T).init(allocator, &.{temp.items.len}, temp.items);
+    const result = try NDArray(T).init(allocator, &.{temp.items.len});
+    @memcpy(result.data, temp.items);
+    return result;
 }
 
 /// Find the set exclusive-or of two arrays.
 /// Return the sorted, unique values that are in only one (not both) of the input arrays.
 pub fn setxor1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: NDArray(T)) !NDArray(T) {
     var uniq1 = try unique(allocator, T, ar1);
-    defer uniq1.deinit();
+    defer uniq1.deinit(allocator);
     var uniq2 = try unique(allocator, T, ar2);
-    defer uniq2.deinit();
+    defer uniq2.deinit(allocator);
 
-    var temp = try std.ArrayList(T).initCapacity(allocator, uniq1.size() + uniq2.size());
-    defer temp.deinit();
+    var temp = try std.ArrayListUnmanaged(T).initCapacity(allocator, uniq1.size() + uniq2.size());
+    defer temp.deinit(allocator);
 
     var i: usize = 0;
     var j: usize = 0;
     while (i < uniq1.size() and j < uniq2.size()) {
         if (uniq1.data[i] < uniq2.data[j]) {
-            try temp.append(uniq1.data[i]);
+            try temp.append(allocator, uniq1.data[i]);
             i += 1;
         } else if (uniq1.data[i] > uniq2.data[j]) {
-            try temp.append(uniq2.data[j]);
+            try temp.append(allocator, uniq2.data[j]);
             j += 1;
         } else {
             // Equal, skip both
@@ -190,11 +194,74 @@ pub fn setxor1d(allocator: Allocator, comptime T: type, ar1: NDArray(T), ar2: ND
         }
     }
     while (i < uniq1.size()) : (i += 1) {
-        try temp.append(uniq1.data[i]);
+        try temp.append(allocator, uniq1.data[i]);
     }
     while (j < uniq2.size()) : (j += 1) {
-        try temp.append(uniq2.data[j]);
+        try temp.append(allocator, uniq2.data[j]);
     }
 
-    return NDArray(T).init(allocator, &.{temp.items.len}, temp.items);
+    const result = try NDArray(T).init(allocator, &.{temp.items.len});
+    @memcpy(result.data, temp.items);
+    return result;
+}
+
+test "setops unique" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{4});
+    defer a.deinit(allocator);
+    a.data[0] = 1.0;
+    a.data[1] = 2.0;
+    a.data[2] = 1.0;
+    a.data[3] = 3.0;
+
+    var u = try unique(allocator, f32, a);
+    defer u.deinit(allocator);
+
+    try std.testing.expectEqual(u.size(), 3);
+    try std.testing.expectEqual(u.data[0], 1.0);
+    try std.testing.expectEqual(u.data[1], 2.0);
+    try std.testing.expectEqual(u.data[2], 3.0);
+}
+
+test "setops in1d" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{3});
+    defer a.deinit(allocator);
+    a.data[0] = 1.0;
+    a.data[1] = 2.0;
+    a.data[2] = 3.0;
+
+    var b = try NDArray(f32).init(allocator, &.{2});
+    defer b.deinit(allocator);
+    b.data[0] = 2.0;
+    b.data[1] = 4.0;
+
+    var res = try in1d(allocator, f32, a, b);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(res.data[0], false);
+    try std.testing.expectEqual(res.data[1], true);
+    try std.testing.expectEqual(res.data[2], false);
+}
+
+test "setops intersect1d" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{3});
+    defer a.deinit(allocator);
+    a.data[0] = 1.0;
+    a.data[1] = 2.0;
+    a.data[2] = 3.0;
+
+    var b = try NDArray(f32).init(allocator, &.{3});
+    defer b.deinit(allocator);
+    b.data[0] = 2.0;
+    b.data[1] = 3.0;
+    b.data[2] = 4.0;
+
+    var res = try intersect1d(allocator, f32, a, b);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(res.size(), 2);
+    try std.testing.expectEqual(res.data[0], 2.0);
+    try std.testing.expectEqual(res.data[1], 3.0);
 }

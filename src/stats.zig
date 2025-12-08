@@ -17,10 +17,10 @@ const Allocator = std.mem.Allocator;
 ///
 /// Example:
 /// ```zig
-/// const s = try stats.sum(f32, &a);
+/// const s = try stats.sum(allocator, f32, &a);
 /// ```
-pub fn sum(comptime T: type, a: *const NDArray(T)) !T {
-    return a.sum();
+pub fn sum(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
+    return a.sum(allocator);
 }
 
 /// Computes the product of all elements in the array.
@@ -37,12 +37,12 @@ pub fn sum(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Example:
 /// ```zig
-/// const p = try stats.prod(f32, &a);
+/// const p = try stats.prod(allocator, f32, &a);
 /// ```
-pub fn prod(comptime T: type, a: *const NDArray(T)) !T {
+pub fn prod(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
     var p: T = 1;
-    var iter = try core.NdIterator.init(a.allocator, a.shape);
-    defer iter.deinit();
+    var iter = try core.NdIterator.init(allocator, a.shape);
+    defer iter.deinit(allocator);
     while (iter.next()) |coords| {
         p *= try a.get(coords);
     }
@@ -63,10 +63,10 @@ pub fn prod(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Example:
 /// ```zig
-/// const m = try stats.min(f32, &a);
+/// const m = try stats.min(allocator, f32, &a);
 /// ```
-pub fn min(comptime T: type, a: *const NDArray(T)) !T {
-    return a.min();
+pub fn min(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
+    return a.min(allocator);
 }
 
 /// Computes the maximum value in the array.
@@ -80,13 +80,27 @@ pub fn min(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Returns:
 ///     The maximum value.
-///
 /// Example:
 /// ```zig
-/// const m = try stats.max(f32, &a);
+/// const m = try stats.max(allocator, f32, &a);
 /// ```
-pub fn max(comptime T: type, a: *const NDArray(T)) !T {
-    return a.max();
+pub fn max(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
+    return a.max(allocator);
+}
+
+test "stats basic" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f64).init(allocator, &.{4});
+    defer a.deinit(allocator);
+    a.data[0] = 1;
+    a.data[1] = 2;
+    a.data[2] = 3;
+    a.data[3] = 4;
+
+    try std.testing.expectEqual(try sum(allocator, f64, &a), 10.0);
+    try std.testing.expectEqual(try prod(allocator, f64, &a), 24.0);
+    try std.testing.expectEqual(try min(allocator, f64, &a), 1.0);
+    try std.testing.expectEqual(try max(allocator, f64, &a), 4.0);
 }
 
 /// Computes the mean of all elements in the array.
@@ -100,13 +114,12 @@ pub fn max(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Returns:
 ///     The mean value.
-///
 /// Example:
 /// ```zig
-/// const m = try stats.mean(f32, &a);
+/// const m = try stats.mean(allocator, f32, &a);
 /// ```
-pub fn mean(comptime T: type, a: *const NDArray(T)) !T {
-    return a.mean();
+pub fn mean(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
+    return a.mean(allocator);
 }
 
 /// Computes the variance.
@@ -123,14 +136,14 @@ pub fn mean(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Example:
 /// ```zig
-/// const v = try stats.var_val(f32, &a);
+/// const v = try stats.var_val(allocator, f32, &a);
 /// ```
-pub fn var_val(comptime T: type, a: *const NDArray(T)) !T {
+pub fn var_val(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
     if (a.size() == 0) return 0;
-    const m = try mean(T, a);
+    const m = try mean(allocator, T, a);
     var ss: T = 0;
-    var iter = try core.NdIterator.init(a.allocator, a.shape);
-    defer iter.deinit();
+    var iter = try core.NdIterator.init(allocator, a.shape);
+    defer iter.deinit(allocator);
     while (iter.next()) |coords| {
         const val = try a.get(coords);
         const diff = val - m;
@@ -153,10 +166,10 @@ pub fn var_val(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Example:
 /// ```zig
-/// const s = try stats.std_val(f32, &a);
+/// const s = try stats.std_val(allocator, f32, &a);
 /// ```
-pub fn std_val(comptime T: type, a: *const NDArray(T)) !T {
-    return @sqrt(try var_val(T, a));
+pub fn std_val(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
+    return @sqrt(try var_val(allocator, T, a));
 }
 
 /// Computes the median.
@@ -177,10 +190,10 @@ pub fn std_val(comptime T: type, a: *const NDArray(T)) !T {
 /// ```zig
 /// const m = try stats.median(allocator, f32, &a);
 /// ```
-pub fn median(comptime T: type, a: *const NDArray(T)) !T {
+pub fn median(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !T {
     if (a.size() == 0) return 0;
-    var sorted = try a.flatten();
-    defer sorted.deinit();
+    var sorted = try a.flatten(allocator);
+    defer sorted.deinit(allocator);
 
     std.mem.sort(T, sorted.data, {}, std.sort.asc(T));
 
@@ -203,16 +216,16 @@ pub fn median(comptime T: type, a: *const NDArray(T)) !T {
 ///
 /// Example:
 /// ```zig
-/// const idx = try stats.argmin(f32, &a);
+/// const idx = try stats.argmin(allocator, f32, &a);
 /// ```
-pub fn argmin(comptime T: type, a: *const NDArray(T)) !usize {
+pub fn argmin(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !usize {
     if (a.size() == 0) return 0;
     var m: T = 0;
     var min_idx: usize = 0;
     var current_idx: usize = 0;
 
-    var iter = try core.NdIterator.init(a.allocator, a.shape);
-    defer iter.deinit();
+    var iter = try core.NdIterator.init(allocator, a.shape);
+    defer iter.deinit(allocator);
 
     if (iter.next()) |coords| {
         m = try a.get(coords);
@@ -241,16 +254,16 @@ pub fn argmin(comptime T: type, a: *const NDArray(T)) !usize {
 ///
 /// Example:
 /// ```zig
-/// const idx = try stats.argmax(f32, &a);
+/// const idx = try stats.argmax(allocator, f32, &a);
 /// ```
-pub fn argmax(comptime T: type, a: *const NDArray(T)) !usize {
+pub fn argmax(allocator: Allocator, comptime T: type, a: *const NDArray(T)) !usize {
     if (a.size() == 0) return 0;
     var m: T = 0;
     var max_idx: usize = 0;
     var current_idx: usize = 0;
 
-    var iter = try core.NdIterator.init(a.allocator, a.shape);
-    defer iter.deinit();
+    var iter = try core.NdIterator.init(allocator, a.shape);
+    defer iter.deinit(allocator);
 
     if (iter.next()) |coords| {
         m = try a.get(coords);
@@ -286,7 +299,7 @@ pub fn argmax(comptime T: type, a: *const NDArray(T)) !usize {
 /// Example:
 /// ```zig
 /// var s = try stats.sumAxis(f32, allocator, &a, 0, false);
-/// defer s.deinit();
+/// defer s.deinit(allocator);
 /// ```
 pub fn sumAxis(comptime T: type, allocator: Allocator, a: *const NDArray(T), axis: usize, keepdims: bool) !NDArray(T) {
     if (axis >= a.rank()) return core.Error.IndexOutOfBounds;
@@ -309,10 +322,10 @@ pub fn sumAxis(comptime T: type, allocator: Allocator, a: *const NDArray(T), axi
     defer allocator.free(new_shape);
 
     var result = try NDArray(T).zeros(allocator, new_shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var res_coords = try allocator.alloc(usize, result.rank());
     defer allocator.free(res_coords);
@@ -358,7 +371,7 @@ pub fn sumAxis(comptime T: type, allocator: Allocator, a: *const NDArray(T), axi
 /// Example:
 /// ```zig
 /// var m = try stats.meanAxis(f32, allocator, &a, 0, false);
-/// defer m.deinit();
+/// defer m.deinit(allocator);
 /// ```
 pub fn meanAxis(comptime T: type, allocator: Allocator, a: *const NDArray(T), axis: usize, keepdims: bool) !NDArray(T) {
     if (@typeInfo(T) != .float) {
@@ -389,7 +402,7 @@ pub const stddev = std_val;
 /// Example:
 /// ```zig
 /// var counts = try stats.bincount(allocator, &a);
-/// defer counts.deinit();
+/// defer counts.deinit(allocator);
 /// ```
 pub fn bincount(allocator: Allocator, a: *const NDArray(i32)) !NDArray(usize) {
     if (a.size() == 0) return NDArray(usize).zeros(allocator, &.{0});
@@ -397,7 +410,7 @@ pub fn bincount(allocator: Allocator, a: *const NDArray(i32)) !NDArray(usize) {
     // Find max value
     var max_val: i32 = 0;
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         const val = try a.get(coords);
@@ -435,11 +448,11 @@ pub fn bincount(allocator: Allocator, a: *const NDArray(i32)) !NDArray(usize) {
 /// Example:
 /// ```zig
 /// var v = try stats.variance(f32, allocator, &a, 0);
-/// defer v.deinit();
+/// defer v.deinit(allocator);
 /// ```
 pub fn variance(comptime T: type, allocator: Allocator, a: *const NDArray(T), axis: usize) !NDArray(T) {
     var means = try meanAxis(T, allocator, a, axis, true);
-    defer means.deinit();
+    defer means.deinit(allocator);
 
     var res_shape = try allocator.alloc(usize, a.rank() - 1);
     defer allocator.free(res_shape);
@@ -452,10 +465,10 @@ pub fn variance(comptime T: type, allocator: Allocator, a: *const NDArray(T), ax
     }
 
     var result = try NDArray(T).zeros(allocator, res_shape);
-    errdefer result.deinit();
+    errdefer result.deinit(allocator);
 
     var iter = try core.NdIterator.init(allocator, a.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var res_coords = try allocator.alloc(usize, result.rank());
     defer allocator.free(res_coords);
@@ -509,7 +522,7 @@ pub fn variance(comptime T: type, allocator: Allocator, a: *const NDArray(T), ax
 /// Example:
 /// ```zig
 /// var s = try stats.stdDev(f32, allocator, &a, 0);
-/// defer s.deinit();
+/// defer s.deinit(allocator);
 /// ```
 pub fn stdDev(comptime T: type, allocator: Allocator, a: *const NDArray(T), axis: usize) !NDArray(T) {
     const v = try variance(T, allocator, a, axis);
@@ -535,13 +548,13 @@ pub fn stdDev(comptime T: type, allocator: Allocator, a: *const NDArray(T), axis
 /// Example:
 /// ```zig
 /// var u = try stats.unique(f32, allocator, &a);
-/// defer u.deinit();
+/// defer u.deinit(allocator);
 /// ```
 pub fn unique(comptime T: type, allocator: Allocator, a: *const NDArray(T)) !NDArray(T) {
     if (a.size() == 0) return NDArray(T).zeros(allocator, &.{0});
 
-    var flat = try a.flatten();
-    defer flat.deinit();
+    var flat = try a.flatten(allocator);
+    defer flat.deinit(allocator);
 
     std.mem.sort(T, flat.data, {}, std.sort.asc(T));
 

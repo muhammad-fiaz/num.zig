@@ -1,6 +1,8 @@
 const std = @import("std");
 const core = @import("../core.zig");
+const autograd = @import("../autograd/tensor.zig");
 const NDArray = core.NDArray;
+const Tensor = autograd.Tensor;
 const Allocator = std.mem.Allocator;
 
 /// Computes the Mean Squared Error (MSE) loss between true and predicted values.
@@ -42,7 +44,7 @@ pub fn mse(allocator: Allocator, y_true: *const NDArray(f32), y_pred: *const NDA
     } else {
         // Fallback for non-contiguous arrays
         var iter = try core.NdIterator.init(allocator, y_true.shape); // Allocates!
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         // This is slow because of allocation and iteration.
         // Ideally we should have a non-allocating iterator or just iterate indices if shapes match.
@@ -99,7 +101,7 @@ pub fn categoricalCrossEntropy(allocator: Allocator, y_true: *const NDArray(f32)
         }
     } else {
         var iter = try core.NdIterator.init(allocator, y_true.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         while (iter.next()) |coords| {
             const val = try y_true.get(coords);
             var pred = try y_pred.get(coords);
@@ -231,19 +233,47 @@ pub fn binaryCrossEntropy(allocator: Allocator, y_true: *const NDArray(f32), y_p
     return sum / @as(f32, @floatFromInt(y_true.size()));
 }
 
+/// Computes the MSE loss for Tensors.
+pub fn mseTensor(allocator: Allocator, y_pred: *Tensor(f32), y_true: *Tensor(f32)) !*Tensor(f32) {
+    return y_pred.mse_loss(allocator, y_true);
+}
+
+/// Computes the Cross Entropy loss for Tensors.
+pub fn crossEntropyTensor(allocator: Allocator, y_pred: *Tensor(f32), y_true: *Tensor(f32)) !*Tensor(f32) {
+    return y_pred.cross_entropy_loss(allocator, y_true);
+}
+
 test "ml loss mse" {
     const allocator = std.testing.allocator;
     var true_vals = try NDArray(f32).init(allocator, &.{2});
-    defer true_vals.deinit();
+    defer true_vals.deinit(allocator);
     try true_vals.set(&.{0}, 1.0);
     try true_vals.set(&.{1}, 0.0);
 
     var pred_vals = try NDArray(f32).init(allocator, &.{2});
-    defer pred_vals.deinit();
+    defer pred_vals.deinit(allocator);
     try pred_vals.set(&.{0}, 0.9);
     try pred_vals.set(&.{1}, 0.1);
 
     // MSE = ((1-0.9)^2 + (0-0.1)^2) / 2 = (0.01 + 0.01) / 2 = 0.01
     const l = try mse(allocator, &true_vals, &pred_vals);
     try std.testing.expectApproxEqAbs(l, 0.01, 1e-4);
+}
+
+test "ml loss cross entropy" {
+    const allocator = std.testing.allocator;
+    var true_vals = try NDArray(f32).init(allocator, &.{2});
+    defer true_vals.deinit(allocator);
+    try true_vals.set(&.{0}, 1.0);
+    try true_vals.set(&.{1}, 0.0);
+
+    var pred_vals = try NDArray(f32).init(allocator, &.{2});
+    defer pred_vals.deinit(allocator);
+    try pred_vals.set(&.{0}, 0.9);
+    try pred_vals.set(&.{1}, 0.1);
+
+    // BCE = -(1*log(0.9) + 0*log(1-0.9) + 0*log(0.1) + 1*log(1-0.1)) / 2
+    //     = -(log(0.9) + log(0.9)) / 2 = -log(0.9) ~= 0.10536
+    const l = try binaryCrossEntropy(allocator, &true_vals, &pred_vals);
+    try std.testing.expectApproxEqAbs(l, 0.10536, 1e-4);
 }

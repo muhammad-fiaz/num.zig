@@ -11,64 +11,62 @@ pub fn Graph(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
-        adj: std.AutoHashMap(T, std.ArrayListUnmanaged(T)),
+        adj: std.AutoHashMapUnmanaged(T, std.ArrayListUnmanaged(T)),
 
-        pub fn init(allocator: Allocator) Self {
+        pub fn init() Self {
             return .{
-                .allocator = allocator,
-                .adj = std.AutoHashMap(T, std.ArrayListUnmanaged(T)).init(allocator),
+                .adj = std.AutoHashMapUnmanaged(T, std.ArrayListUnmanaged(T)){},
             };
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             var iter = self.adj.iterator();
             while (iter.next()) |entry| {
-                entry.value_ptr.deinit(self.allocator);
+                entry.value_ptr.deinit(allocator);
             }
-            self.adj.deinit();
+            self.adj.deinit(allocator);
         }
 
-        pub fn addVertex(self: *Self, v: T) !void {
+        pub fn addVertex(self: *Self, allocator: Allocator, v: T) !void {
             if (!self.adj.contains(v)) {
-                try self.adj.put(v, .{});
+                try self.adj.put(allocator, v, .{});
             }
         }
 
-        pub fn addEdge(self: *Self, u: T, v: T) !void {
-            try self.addVertex(u);
-            try self.addVertex(v);
-            try self.adj.getPtr(u).?.append(self.allocator, v);
+        pub fn addEdge(self: *Self, allocator: Allocator, u: T, v: T) !void {
+            try self.addVertex(allocator, u);
+            try self.addVertex(allocator, v);
+            try self.adj.getPtr(u).?.append(allocator, v);
             // For undirected, uncomment:
-            // try self.adj.getPtr(v).?.append(self.allocator, u);
+            // try self.adj.getPtr(v).?.append(allocator, u);
         }
 
         /// Breadth-First Search.
         ///
         /// Logic: Queue-based traversal.
-        pub fn bfs(self: Self, start: T) !std.ArrayListUnmanaged(T) {
-            var visited = std.AutoHashMap(T, void).init(self.allocator);
+        pub fn bfs(self: Self, allocator: Allocator, start: T) !std.ArrayListUnmanaged(T) {
+            var visited = std.AutoHashMap(T, void).init(allocator);
             defer visited.deinit();
 
             var result = std.ArrayListUnmanaged(T){};
-            errdefer result.deinit(self.allocator);
+            errdefer result.deinit(allocator);
 
             // Simple queue using ArrayListUnmanaged
             var queue = std.ArrayListUnmanaged(T){};
-            defer queue.deinit(self.allocator);
+            defer queue.deinit(allocator);
 
-            try queue.append(self.allocator, start);
+            try queue.append(allocator, start);
             try visited.put(start, {});
 
             while (queue.items.len > 0) {
                 const current = queue.orderedRemove(0); // Dequeue
-                try result.append(self.allocator, current);
+                try result.append(allocator, current);
 
                 if (self.adj.get(current)) |neighbors| {
                     for (neighbors.items) |neighbor| {
                         if (!visited.contains(neighbor)) {
                             try visited.put(neighbor, {});
-                            try queue.append(self.allocator, neighbor);
+                            try queue.append(allocator, neighbor);
                         }
                     }
                 }
@@ -80,24 +78,24 @@ pub fn Graph(comptime T: type) type {
         /// Depth-First Search.
         ///
         /// Logic: Stack-based traversal (recursion).
-        pub fn dfs(self: Self, start: T) !std.ArrayList(T) {
-            var visited = std.AutoHashMap(T, void).init(self.allocator);
+        pub fn dfs(self: Self, allocator: Allocator, start: T) !std.ArrayList(T) {
+            var visited = std.AutoHashMap(T, void).init(allocator);
             defer visited.deinit();
-            var result = std.ArrayList(T).init(self.allocator);
+            var result = std.ArrayList(T).init(allocator);
             errdefer result.deinit();
 
-            try self.dfsRecursive(start, &visited, &result);
+            try self.dfsRecursive(allocator, start, &visited, &result);
             return result;
         }
 
-        fn dfsRecursive(self: Self, u: T, visited: *std.AutoHashMap(T, void), result: *std.ArrayList(T)) !void {
+        fn dfsRecursive(self: Self, allocator: Allocator, u: T, visited: *std.AutoHashMap(T, void), result: *std.ArrayList(T)) !void {
             try visited.put(u, {});
             try result.append(u);
 
             if (self.adj.get(u)) |neighbors| {
                 for (neighbors.items) |v| {
                     if (!visited.contains(v)) {
-                        try self.dfsRecursive(v, visited, result);
+                        try self.dfsRecursive(allocator, v, visited, result);
                     }
                 }
             }

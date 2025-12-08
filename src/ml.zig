@@ -20,3 +20,12 @@ pub const activations = @import("ml/activations.zig");
 pub const loss = @import("ml/loss.zig");
 pub const optim = @import("ml/optim.zig");
 pub const layers = @import("ml/layers.zig");
+pub const models = @import("ml/models.zig");
+
+test {
+    _ = activations;
+    _ = loss;
+    _ = optim;
+    _ = layers;
+    _ = models;
+}

@@ -21,12 +21,12 @@ pub fn sum(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: ?usize
         }
 
         var result = try NDArray(T).zeros(allocator, new_shape);
-        errdefer result.deinit();
+        errdefer result.deinit(allocator);
 
         // Iterate and sum
         // This is a naive implementation. Optimized version would use strides directly.
         var iter = try core.NdIterator.init(allocator, arr.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         while (iter.next()) |coords| {
             const val = try arr.get(coords);
@@ -93,4 +93,37 @@ pub fn min(allocator: Allocator, comptime T: type, arr: NDArray(T)) !T {
         if (val < m) m = val;
     }
     return m;
+}
+
+test "reduction sum mean" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{ 2, 2 });
+    defer arr.deinit(allocator);
+    arr.fill(1.0);
+    try arr.set(&.{ 0, 0 }, 2.0);
+
+    // [[2, 1], [1, 1]]
+    // Sum axis 0: [3, 2]
+    var s0 = try sum(allocator, f32, arr, 0);
+    defer s0.deinit(allocator);
+    try std.testing.expectEqual(try s0.get(&.{0}), 3.0);
+    try std.testing.expectEqual(try s0.get(&.{1}), 2.0);
+
+    // Mean axis 1: [1.5, 1.0]
+    var m1 = try mean(allocator, f32, arr, 1);
+    defer m1.deinit(allocator);
+    try std.testing.expectEqual(try m1.get(&.{0}), 1.5);
+    try std.testing.expectEqual(try m1.get(&.{1}), 1.0);
+}
+
+test "reduction min max" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).init(allocator, &.{3});
+    defer arr.deinit(allocator);
+    arr.data[0] = 1.0;
+    arr.data[1] = 5.0;
+    arr.data[2] = -2.0;
+
+    try std.testing.expectEqual(try max(allocator, f32, arr), 5.0);
+    try std.testing.expectEqual(try min(allocator, f32, arr), -2.0);
 }

@@ -1,59 +1,57 @@
-# FFT
+# FFT API Reference
 
-The `fft` module provides Fast Fourier Transform operations.
+The `fft` module provides Fast Fourier Transform functions.
 
-## Functions
+## 1D FFT
 
-### `fft`
+### fft
 
-Computes the 1D Fast Fourier Transform.
+Compute the one-dimensional discrete Fourier Transform.
 
 ```zig
-pub fn fft(allocator: std.mem.Allocator, input: *const NDArray(f32)) !NDArray(Complex(f32))
+pub fn fft(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
 ```
 
-**Parameters:**
-- `allocator`: Memory allocator.
-- `input`: Input 1D array of real numbers (length must be power of 2).
+### ifft
 
-**Returns:**
-- `NDArray(Complex(f32))` containing FFT coefficients.
-
-### `ifft`
-
-Computes the 1D Inverse Fast Fourier Transform.
+Compute the one-dimensional inverse discrete Fourier Transform.
 
 ```zig
-pub fn ifft(allocator: std.mem.Allocator, input: *const NDArray(Complex(f32))) !NDArray(Complex(f32))
+pub fn ifft(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
 ```
 
-**Parameters:**
-- `allocator`: Memory allocator.
-- `input`: Input 1D array of complex numbers.
+## 2D FFT
 
-**Returns:**
-- `NDArray(Complex(f32))` containing IFFT result.
+### fft2
 
-## Example
+Compute the 2-dimensional discrete Fourier Transform.
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const FFT = num.fft.FFT;
+pub fn fft2(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
+```
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+### ifft2
 
-    var a = try num.NDArray(f32).init(allocator, &.{4});
-    a.set(&.{0}, 1.0);
-    a.set(&.{1}, 1.0);
-    a.set(&.{2}, 1.0);
-    a.set(&.{3}, 1.0);
+Compute the 2-dimensional inverse discrete Fourier Transform.
 
-    var result = try FFT.fft(allocator, &a);
-    defer result.deinit();
-    
-    // result is approx {4+0i, 0+0i, 0+0i, 0+0i}
-}
+```zig
+pub fn ifft2(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
+```
+
+## N-D FFT
+
+### fftn
+
+Compute the N-dimensional discrete Fourier Transform.
+
+```zig
+pub fn fftn(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
+```
+
+### ifftn
+
+Compute the N-dimensional inverse discrete Fourier Transform.
+
+```zig
+pub fn ifftn(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
 ```

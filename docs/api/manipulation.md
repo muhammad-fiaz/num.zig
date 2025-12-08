@@ -1,58 +1,10 @@
-# Manipulation
+# Manipulation API Reference
 
-The `manipulation` module provides functions to change array structure.
+The `manipulation` module provides functions for changing array shapes and content.
 
-## Functions
+## Shape Manipulation
 
-### `vstack`
-
-Stack arrays vertically (row-wise).
-
-```zig
-pub fn vstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
-```
-
-### `hstack`
-
-Stack arrays horizontally (column-wise).
-
-```zig
-pub fn hstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
-```
-
-### `dstack`
-
-Stack arrays depth-wise (along third axis).
-
-```zig
-pub fn dstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
-```
-
-### `tile`
-
-Construct an array by repeating A the number of times given by reps.
-
-```zig
-pub fn tile(allocator: Allocator, comptime T: type, arr: NDArray(T), reps: []const usize) !NDArray(T)
-```
-
-### `repeat`
-
-Repeat elements of an array.
-
-```zig
-pub fn repeat(allocator: Allocator, comptime T: type, arr: NDArray(T), repeats: usize, axis: ?usize) !NDArray(T)
-```
-
-### `moveaxis`
-
-Move axes of an array to new positions.
-
-```zig
-pub fn moveaxis(allocator: Allocator, comptime T: type, arr: NDArray(T), source: []const usize, destination: []const usize) !NDArray(T)
-```
-
-### `ravel`
+### ravel
 
 Return a contiguous flattened array.
 
@@ -60,23 +12,15 @@ Return a contiguous flattened array.
 pub fn ravel(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(T)
 ```
 
-### `flip`
+### moveaxis
 
-Reverse the order of elements in an array along the given axis.
-
-```zig
-pub fn flip(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(T)
-```
-
-### `roll`
-
-Roll array elements along a given axis.
+Move axes of an array to new positions.
 
 ```zig
-pub fn roll(allocator: Allocator, comptime T: type, arr: NDArray(T), shift: isize, axis: usize) !NDArray(T)
+pub fn moveaxis(allocator: Allocator, comptime T: type, arr: NDArray(T), source: []const usize, destination: []const usize) !NDArray(T)
 ```
 
-### `swapaxes`
+### swapaxes
 
 Interchange two axes of an array.
 
@@ -84,30 +28,112 @@ Interchange two axes of an array.
 pub fn swapaxes(allocator: Allocator, comptime T: type, arr: NDArray(T), axis1: usize, axis2: usize) !NDArray(T)
 ```
 
-### `delete`
+### flip
 
-Delete elements at specified indices (flattened).
+Reverse the order of elements in an array along the given axis.
+
+```zig
+pub fn flip(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(T)
+```
+
+### roll
+
+Roll array elements along a given axis.
+
+```zig
+pub fn roll(allocator: Allocator, comptime T: type, arr: NDArray(T), shift: isize, axis: usize) !NDArray(T)
+```
+
+## Joining Arrays
+
+### vstack
+
+Stack arrays in sequence vertically (row wise).
+
+```zig
+pub fn vstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
+```
+
+### hstack
+
+Stack arrays in sequence horizontally (column wise).
+
+```zig
+pub fn hstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
+```
+
+### dstack
+
+Stack arrays in sequence depth wise (along third axis).
+
+```zig
+pub fn dstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)) !NDArray(T)
+```
+
+## Tiling and Repeating
+
+### tile
+
+Construct an array by repeating A the number of times given by reps.
+
+```zig
+pub fn tile(allocator: Allocator, comptime T: type, arr: NDArray(T), reps: []const usize) !NDArray(T)
+```
+
+### repeat
+
+Repeat elements of an array.
+
+```zig
+pub fn repeat(allocator: Allocator, comptime T: type, arr: NDArray(T), repeats: usize, axis: ?usize) !NDArray(T)
+```
+
+## Search and Replace
+
+### find
+
+Find indices where a predicate is true.
+
+```zig
+pub fn find(allocator: Allocator, comptime T: type, a: *const NDArray(T), predicate: anytype) !NDArray(usize)
+```
+
+### replace
+
+Replace all occurrences of a value.
+
+```zig
+pub fn replace(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T)
+```
+
+### replaceWhere
+
+Replace values where a predicate is true.
+
+```zig
+pub fn replaceWhere(allocator: Allocator, comptime T: type, a: *const NDArray(T), predicate: anytype, value: T) !NDArray(T)
+```
+
+### replaceFirst
+
+Replace the first occurrence of a value.
+
+```zig
+pub fn replaceFirst(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T)
+```
+
+### replaceLast
+
+Replace the last occurrence of a value.
+
+```zig
+pub fn replaceLast(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T)
+```
+
+### delete
+
+Return a new array with sub-arrays along an axis deleted.
 
 ```zig
 pub fn delete(allocator: Allocator, comptime T: type, a: *const NDArray(T), indices: []const usize) !NDArray(T)
-```
-
-## Example
-
-```zig
-const std = @import("std");
-const num = @import("num");
-const manipulation = num.manipulation;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var a = try num.NDArray(f32).init(allocator, &.{2}, &.{1.0, 2.0});
-    var b = try num.NDArray(f32).init(allocator, &.{2}, &.{3.0, 4.0});
-
-    var c = try manipulation.vstack(allocator, f32, &.{a, b});
-    defer c.deinit();
-    // c is [[1, 2], [3, 4]]
-}
 ```

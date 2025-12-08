@@ -24,12 +24,12 @@ pub fn vstack(allocator: Allocator, comptime T: type, arrays: []const NDArray(T)
         var initialized_count: usize = 0;
         defer {
             for (0..initialized_count) |k| {
-                promoted[k].deinit();
+                promoted[k].deinit(allocator);
             }
         }
 
         for (arrays, 0..) |arr, i| {
-            promoted[i] = try arr.expandDims(0);
+            promoted[i] = try arr.expandDims(allocator, 0);
             initialized_count += 1;
         }
 
@@ -136,7 +136,7 @@ pub fn tile(allocator: Allocator, comptime T: type, arr: NDArray(T), reps: []con
     var result = try NDArray(T).init(allocator, new_shape);
 
     var iter = try core.NdIterator.init(allocator, new_shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var source_coords = try allocator.alloc(usize, arr.rank());
     defer allocator.free(source_coords);
@@ -180,7 +180,7 @@ pub fn repeat(allocator: Allocator, comptime T: type, arr: NDArray(T), repeats: 
         var result = try NDArray(T).init(allocator, new_shape);
 
         var iter = try core.NdIterator.init(allocator, result.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         var source_coords = try allocator.alloc(usize, arr.rank());
         defer allocator.free(source_coords);
@@ -200,7 +200,7 @@ pub fn repeat(allocator: Allocator, comptime T: type, arr: NDArray(T), repeats: 
         var result = try NDArray(T).init(allocator, &.{flat_size});
 
         var iter = try core.NdIterator.init(allocator, arr.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
 
         var idx: usize = 0;
         while (iter.next()) |coords| {
@@ -298,7 +298,7 @@ pub fn flip(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize
     var result = try NDArray(T).init(allocator, arr.shape);
 
     var iter = try core.NdIterator.init(allocator, result.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var source_coords = try allocator.alloc(usize, arr.rank());
     defer allocator.free(source_coords);
@@ -338,7 +338,7 @@ pub fn roll(allocator: Allocator, comptime T: type, arr: NDArray(T), shift: isiz
     const u_shift = @as(usize, @intCast(s));
 
     var iter = try core.NdIterator.init(allocator, result.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     var source_coords = try allocator.alloc(usize, arr.rank());
     defer allocator.free(source_coords);
@@ -408,7 +408,7 @@ pub fn find(allocator: Allocator, comptime T: type, a: *const NDArray(T), predic
         }
     } else {
         var iter = try core.NdIterator.init(allocator, a.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         while (iter.next()) |coords| {
             const val = try a.get(coords);
             if (predicate(val)) count += 1;
@@ -429,7 +429,7 @@ pub fn find(allocator: Allocator, comptime T: type, a: *const NDArray(T), predic
         }
     } else {
         var iter = try core.NdIterator.init(allocator, a.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         while (iter.next()) |coords| {
             const val = try a.get(coords);
             if (predicate(val)) {
@@ -462,8 +462,7 @@ pub fn find(allocator: Allocator, comptime T: type, a: *const NDArray(T), predic
 /// defer res.deinit();
 /// ```
 pub fn replaceWhere(allocator: Allocator, comptime T: type, a: *const NDArray(T), predicate: anytype, value: T) !NDArray(T) {
-    _ = allocator;
-    const result = try a.copy();
+    const result = try a.copy(allocator);
     // Note: copy() returns a contiguous array, so we can iterate data directly
     for (result.data) |*val| {
         if (predicate(val.*)) {
@@ -493,8 +492,7 @@ pub fn replaceWhere(allocator: Allocator, comptime T: type, a: *const NDArray(T)
 /// defer res.deinit();
 /// ```
 pub fn replace(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T) {
-    _ = allocator;
-    const result = try a.copy();
+    const result = try a.copy(allocator);
     for (result.data) |*val| {
         if (val.* == old_val) {
             val.* = new_val;
@@ -517,8 +515,7 @@ pub fn replace(allocator: Allocator, comptime T: type, a: *const NDArray(T), old
 /// Returns:
 ///     New NDArray(T).
 pub fn replaceFirst(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T) {
-    _ = allocator;
-    const result = try a.copy();
+    const result = try a.copy(allocator);
     for (result.data) |*val| {
         if (val.* == old_val) {
             val.* = new_val;
@@ -542,8 +539,7 @@ pub fn replaceFirst(allocator: Allocator, comptime T: type, a: *const NDArray(T)
 /// Returns:
 ///     New NDArray(T).
 pub fn replaceLast(allocator: Allocator, comptime T: type, a: *const NDArray(T), old_val: T, new_val: T) !NDArray(T) {
-    _ = allocator;
-    const result = try a.copy();
+    const result = try a.copy(allocator);
     var i: usize = result.data.len;
     while (i > 0) {
         i -= 1;
@@ -598,7 +594,7 @@ pub fn delete(allocator: Allocator, comptime T: type, a: *const NDArray(T), indi
         }
     } else {
         var iter = try core.NdIterator.init(allocator, a.shape);
-        defer iter.deinit();
+        defer iter.deinit(allocator);
         var i: usize = 0;
         while (iter.next()) |coords| {
             const val = try a.get(coords);
@@ -610,4 +606,41 @@ pub fn delete(allocator: Allocator, comptime T: type, a: *const NDArray(T), indi
         }
     }
     return result;
+}
+
+test "manipulation vstack" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{2});
+    defer a.deinit(allocator);
+    a.fill(1.0);
+    var b = try NDArray(f32).init(allocator, &.{2});
+    defer b.deinit(allocator);
+    b.fill(2.0);
+
+    const arrays = [_]NDArray(f32){ a, b };
+    var res = try vstack(allocator, f32, &arrays);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(res.shape[0], 2);
+    try std.testing.expectEqual(res.shape[1], 2);
+    try std.testing.expectEqual(try res.get(&.{ 0, 0 }), 1.0);
+    try std.testing.expectEqual(try res.get(&.{ 1, 0 }), 2.0);
+}
+
+test "manipulation hstack" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f32).init(allocator, &.{2});
+    defer a.deinit(allocator);
+    a.fill(1.0);
+    var b = try NDArray(f32).init(allocator, &.{2});
+    defer b.deinit(allocator);
+    b.fill(2.0);
+
+    const arrays = [_]NDArray(f32){ a, b };
+    var res = try hstack(allocator, f32, &arrays);
+    defer res.deinit(allocator);
+
+    try std.testing.expectEqual(res.shape[0], 4);
+    try std.testing.expectEqual(try res.get(&.{0}), 1.0);
+    try std.testing.expectEqual(try res.get(&.{2}), 2.0);
 }

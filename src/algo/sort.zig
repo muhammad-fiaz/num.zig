@@ -9,14 +9,16 @@ pub const SortAlgo = enum {
     HeapSort,
     InsertionSort,
     BubbleSort,
+    SelectionSort,
+    ShellSort,
     TimSort, // Default std.sort
 };
 
 /// Sorts an array using a specific algorithm.
 pub fn sortByAlgo(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize, algo: SortAlgo) !NDArray(T) {
     if (axis >= arr.rank()) return core.Error.IndexOutOfBounds;
-    var result = try arr.copy();
-    errdefer result.deinit();
+    var result = try arr.copy(allocator);
+    errdefer result.deinit(allocator);
 
     // Iterate over all dimensions except axis
     var iter_shape = try allocator.alloc(usize, arr.rank());
@@ -25,7 +27,7 @@ pub fn sortByAlgo(allocator: Allocator, comptime T: type, arr: NDArray(T), axis:
     iter_shape[axis] = 1;
 
     var iter = try core.NdIterator.init(allocator, iter_shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     const dim_size = arr.shape[axis];
     var slice_vals = try allocator.alloc(T, dim_size);
@@ -50,6 +52,8 @@ pub fn sortByAlgo(allocator: Allocator, comptime T: type, arr: NDArray(T), axis:
             .HeapSort => heapSort(T, slice_vals),
             .InsertionSort => insertionSort(T, slice_vals),
             .BubbleSort => bubbleSort(T, slice_vals),
+            .SelectionSort => selectionSort(T, slice_vals),
+            .ShellSort => shellSort(T, slice_vals),
             .TimSort => std.mem.sort(T, slice_vals, {}, std.sort.asc(T)),
         }
 
@@ -174,6 +178,36 @@ fn bubbleSort(comptime T: type, arr: []T) void {
     }
 }
 
+fn selectionSort(comptime T: type, arr: []T) void {
+    const n = arr.len;
+    for (0..n - 1) |i| {
+        var min_idx = i;
+        for (i + 1..n) |j| {
+            if (arr[j] < arr[min_idx]) {
+                min_idx = j;
+            }
+        }
+        if (min_idx != i) {
+            std.mem.swap(T, &arr[i], &arr[min_idx]);
+        }
+    }
+}
+
+fn shellSort(comptime T: type, arr: []T) void {
+    const n = arr.len;
+    var gap = n / 2;
+    while (gap > 0) : (gap /= 2) {
+        for (gap..n) |i| {
+            const temp = arr[i];
+            var j = i;
+            while (j >= gap and arr[j - gap] > temp) : (j -= gap) {
+                arr[j] = arr[j - gap];
+            }
+            arr[j] = temp;
+        }
+    }
+}
+
 /// Sorts an array along a given axis.
 ///
 /// Returns a new sorted array (copy). The original array is not modified.
@@ -190,10 +224,10 @@ fn bubbleSort(comptime T: type, arr: []T) void {
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{3.0, 1.0, 2.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var sorted = try sort.sort(allocator, f32, a, 0);
-/// defer sorted.deinit();
+/// defer sorted.deinit(allocator);
 /// // sorted is {1.0, 2.0, 3.0}
 /// ```
 pub fn sort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(T) {
@@ -211,7 +245,7 @@ pub fn sort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize
     iter_shape[axis] = 1;
 
     var iter = try core.NdIterator.init(allocator, iter_shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     const dim_size = arr.shape[axis];
     var slice_vals = try allocator.alloc(T, dim_size);
@@ -244,9 +278,8 @@ pub fn sort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize
 
 /// Sorts a 1D array.
 pub fn sort1D(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(T) {
-    _ = allocator;
     if (arr.rank() != 1) return core.Error.RankMismatch;
-    const result = try arr.copy();
+    const result = try arr.copy(allocator);
     std.sort.block(T, result.data, {}, std.sort.asc(T));
     return result;
 }
@@ -265,10 +298,10 @@ pub fn sort1D(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(
 /// Example:
 /// ```zig
 /// var a = try NDArray(f32).init(allocator, &.{3}, &.{3.0, 1.0, 2.0});
-/// defer a.deinit();
+/// defer a.deinit(allocator);
 ///
 /// var indices = try sort.argsort(allocator, f32, a, 0);
-/// defer indices.deinit();
+/// defer indices.deinit(allocator);
 /// // indices is {1, 2, 0}
 /// ```
 pub fn argsort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: usize) !NDArray(usize) {
@@ -282,7 +315,7 @@ pub fn argsort(allocator: Allocator, comptime T: type, arr: NDArray(T), axis: us
     iter_shape[axis] = 1;
 
     var iter = try core.NdIterator.init(allocator, iter_shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     const dim_size = arr.shape[axis];
 
@@ -370,7 +403,7 @@ pub fn nonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray
     // Count non-zeros
     var count: usize = 0;
     var iter = try core.NdIterator.init(allocator, arr.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         const val = try arr.get(coords);
@@ -399,7 +432,7 @@ pub fn nonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray
 pub fn flatnonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDArray(usize) {
     var count: usize = 0;
     var iter = try core.NdIterator.init(allocator, arr.shape);
-    defer iter.deinit();
+    defer iter.deinit(allocator);
 
     while (iter.next()) |coords| {
         const val = try arr.get(coords);
@@ -425,19 +458,19 @@ pub fn flatnonzero(allocator: Allocator, comptime T: type, arr: NDArray(T)) !NDA
 test "sort argsort 1d" {
     const allocator = std.testing.allocator;
     var a = try NDArray(f32).init(allocator, &.{4});
-    defer a.deinit();
+    defer a.deinit(allocator);
     try a.set(&.{0}, 3);
     try a.set(&.{1}, 1);
     try a.set(&.{2}, 4);
     try a.set(&.{3}, 2);
 
     var sorted = try sort1D(allocator, f32, a);
-    defer sorted.deinit();
+    defer sorted.deinit(allocator);
     try std.testing.expectEqual(try sorted.get(&.{0}), 1.0);
     try std.testing.expectEqual(try sorted.get(&.{3}), 4.0);
 
     var indices = try argsort1D(allocator, f32, a);
-    defer indices.deinit();
+    defer indices.deinit(allocator);
     // Should be [1, 3, 0, 2] -> values [1, 2, 3, 4]
     try std.testing.expectEqual(try indices.get(&.{0}), 1);
     try std.testing.expectEqual(try indices.get(&.{1}), 3);
@@ -481,4 +514,24 @@ pub fn argpartition(allocator: Allocator, comptime T: type, arr: NDArray(T), kth
     _ = kth; // Unused for now as we do full sort
     // For now, we just argsort.
     return argsort(allocator, T, arr, axis);
+}
+
+test "sortByAlgo" {
+    const allocator = std.testing.allocator;
+    var a = try NDArray(f64).init(allocator, &.{5});
+    defer a.deinit(allocator);
+    a.data[0] = 5;
+    a.data[1] = 1;
+    a.data[2] = 4;
+    a.data[3] = 2;
+    a.data[4] = 8;
+
+    var sorted = try sortByAlgo(allocator, f64, a, 0, .QuickSort);
+    defer sorted.deinit(allocator);
+
+    try std.testing.expectEqual(sorted.data[0], 1);
+    try std.testing.expectEqual(sorted.data[1], 2);
+    try std.testing.expectEqual(sorted.data[2], 4);
+    try std.testing.expectEqual(sorted.data[3], 5);
+    try std.testing.expectEqual(sorted.data[4], 8);
 }

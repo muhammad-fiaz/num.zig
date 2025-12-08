@@ -29,7 +29,7 @@
 
 A production-grade, high-performance numerical computing library for Zig, designed with a clean, intuitive, and developer-friendly API similar to NumPy.
 
-> Note: This Project is Still in Development!
+> Note: Num.zig is currently under active development. GPU acceleration is not yet supported, but it is planned for future releases. If you are interested, contributions are welcome! ⭐ If you love Num.zig, please consider starring the repository.
 
 ---
 
@@ -51,11 +51,17 @@ A production-grade, high-performance numerical computing library for Zig, design
 | ⚡ **FFT** | N-dimensional Fast Fourier Transform |
 | ℂ **Complex Numbers** | Complex number support and operations |
 | 💾 **IO** | Binary save/load, Memory Mapping (mmap) |
-| 🎨 **Machine Learning** | Dense Layers, Activation Functions, Loss Functions, Optimizers |
+| 🎨 **Machine Learning** | Sequential Models, Dense/Dropout/Softmax Layers, Training Loop, Save/Load |
 | 📊 **Memory Safe** | Built with Zig's safety features and explicit allocator control |
 | 📝 **Cross-Platform** | Supports Windows, Linux, macOS, and bare metal |
 | 🔗 **Zero Dependencies** | Pure Zig implementation with no external dependencies |
 | ⚡ **Performance** | Optimized algorithms including tiled matrix multiplication |
+| 🧮 **Autograd** | Automatic differentiation for gradient-based optimization |
+| 📊 **DataFrame** | Tabular data structures similar to pandas (DataFrame, Series) |
+| 🧩 **Modular Design** | Organized into modules for easy use and extension |
+| 🛠️ **Builtin Collections** | Efficient data structures like basic ML Algorithms, HashSet, etc. |
+| 📚 **Comprehensive Documentation** | Detailed guides and API reference for easy adoption |
+
 </details>
 
 ----
@@ -175,6 +181,7 @@ This repository includes several runnable examples covering different aspects of
 - `zig build run-linalg`: Linear algebra operations (matmul, solve).
 - `zig build run-random`: Random number generation distributions.
 - `zig build run-ml`: Machine learning components (Dense layer, ReLU, MSE).
+- `zig build run-ml_sample`: Full Neural Network training (XOR) using Sequential API.
 - `zig build run-fft`: Fast Fourier Transform.
 - `zig build run-indexing`: Advanced indexing (slicing, take).
 - `zig build run-signal_poly`: Signal processing and polynomials.
@@ -202,18 +209,31 @@ var c = try num.linalg.matmul(f32, allocator, &a, &b);
 defer c.deinit();
 ```
 
-### Machine Learning (Dense Layer)
+### Machine Learning (Sequential API)
 
 ```zig
 const allocator = std.heap.page_allocator;
-var layer = try num.ml.layers.Dense.init(allocator, 10, 5); // Input 10, Output 5
-defer layer.deinit();
+const Sequential = num.ml.models.Sequential;
+const Layer = num.ml.layers.Layer;
+const Dense = num.ml.layers.Dense;
 
-var input = try NDArray(f32).zeros(allocator, &.{ 1, 10 });
-defer input.deinit();
+// Define Model
+var model = Sequential.init(allocator);
+defer model.deinit(allocator);
 
-var output = try layer.forward(allocator, &input);
-defer output.deinit();
+// Add Layers
+try model.add(allocator, Layer{ .Dense = try Dense.init(allocator, 10, 32, .XavierUniform) });
+try model.add(allocator, Layer{ .ReLU = {} });
+try model.add(allocator, Layer{ .Dense = try Dense.init(allocator, 32, 1, .XavierUniform) });
+try model.add(allocator, Layer{ .Sigmoid = {} });
+
+// Train (assuming x_train, y_train, optimizer, loss_fn are defined)
+// try model.fit(allocator, x_train, y_train, optimizer, loss_fn, 100);
+
+// Save & Load
+try model.save(allocator, "model.bin");
+var loaded = try Sequential.load(allocator, "model.bin");
+defer loaded.deinit(allocator);
 ```
 
 ## Performance

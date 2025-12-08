@@ -1,6 +1,12 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const core = @import("core.zig");
+const NDArray = core.NDArray;
+
+/// Reshapes an array to a new shape.
+pub fn reshape(allocator: Allocator, comptime T: type, arr: NDArray(T), new_shape: []const usize) !NDArray(T) {
+    return arr.reshape(allocator, new_shape);
+}
 
 /// Calculates the strides for a given shape assuming row-major (C-style) order.
 pub fn calculateStrides(allocator: Allocator, shape: []const usize) ![]usize {
@@ -61,4 +67,24 @@ pub fn areBroadcastable(shape1: []const usize, shape2: []const usize) bool {
         }
     }
     return true;
+}
+
+test "shape broadcast" {
+    const allocator = std.testing.allocator;
+
+    const s1 = [_]usize{ 3, 1 };
+    const s2 = [_]usize{2};
+
+    const res = try broadcastShapes(allocator, &s1, &s2);
+    defer allocator.free(res);
+
+    try std.testing.expectEqual(res.len, 2);
+    try std.testing.expectEqual(res[0], 3);
+    try std.testing.expectEqual(res[1], 2);
+
+    try std.testing.expect(areBroadcastable(&s1, &s2));
+
+    const s3 = [_]usize{3};
+    const s4 = [_]usize{2};
+    try std.testing.expect(!areBroadcastable(&s3, &s4));
 }

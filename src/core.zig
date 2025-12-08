@@ -27,7 +27,6 @@ pub fn NDArray(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
         data: []T,
         shape: []const usize,
         strides: []const usize,
@@ -102,7 +101,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var arr = try NDArray(f32).init(allocator, &.{2, 3});
-        /// defer arr.deinit();
+        /// defer arr.deinit(allocator);
         /// ```
         pub fn init(allocator: Allocator, shape: []const usize) !Self {
             var total_size: usize = 1;
@@ -131,7 +130,6 @@ pub fn NDArray(comptime T: type) type {
             }
 
             return Self{
-                .allocator = allocator,
                 .data = data,
                 .shape = shape_copy,
                 .strides = strides,
@@ -142,12 +140,12 @@ pub fn NDArray(comptime T: type) type {
         /// Frees all resources associated with this array.
         ///
         /// This includes the data (if owned), shape, and strides.
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             if (self.owns_data) {
-                self.allocator.free(self.data);
+                allocator.free(self.data);
             }
-            self.allocator.free(self.shape);
-            self.allocator.free(self.strides);
+            allocator.free(self.shape);
+            allocator.free(self.strides);
         }
 
         /// Prints the array to stderr.
@@ -156,8 +154,8 @@ pub fn NDArray(comptime T: type) type {
         }
 
         /// Create a deep copy of the array.
-        pub fn copy(self: Self) !Self {
-            const result = try init(self.allocator, self.shape);
+        pub fn copy(self: Self, allocator: Allocator) !Self {
+            const result = try init(allocator, self.shape);
             @memcpy(result.data, self.data);
             return result;
         }
@@ -168,8 +166,8 @@ pub fn NDArray(comptime T: type) type {
         }
 
         /// Cast the array to a different type.
-        pub fn astype(self: Self, comptime DestT: type) !NDArray(DestT) {
-            var result = try NDArray(DestT).init(self.allocator, self.shape);
+        pub fn astype(self: Self, allocator: Allocator, comptime DestT: type) !NDArray(DestT) {
+            var result = try NDArray(DestT).init(allocator, self.shape);
             for (self.data, 0..) |val, i| {
                 result.data[i] = switch (@typeInfo(DestT)) {
                     .int => @as(DestT, @intFromFloat(val)), // Assuming source is float, need generic cast
@@ -202,7 +200,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var z = try NDArray(f32).zeros(allocator, &.{2, 2});
-        /// defer z.deinit();
+        /// defer z.deinit(allocator);
         /// ```
         pub fn zeros(allocator: Allocator, shape: []const usize) !Self {
             const self = try init(allocator, shape);
@@ -222,7 +220,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var i = try NDArray(f32).eye(allocator, 3);
-        /// defer i.deinit();
+        /// defer i.deinit(allocator);
         /// ```
         pub fn eye(allocator: Allocator, n: usize) !Self {
             const self = try zeros(allocator, &.{ n, n });
@@ -254,7 +252,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var o = try NDArray(f32).ones(allocator, &.{2, 2});
-        /// defer o.deinit();
+        /// defer o.deinit(allocator);
         /// ```
         pub fn ones(allocator: Allocator, shape: []const usize) !Self {
             const self = try init(allocator, shape);
@@ -281,7 +279,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var f = try NDArray(f32).full(allocator, &.{2, 2}, 3.14);
-        /// defer f.deinit();
+        /// defer f.deinit(allocator);
         /// ```
         pub fn full(allocator: Allocator, shape: []const usize, value: T) !Self {
             const self = try init(allocator, shape);
@@ -344,7 +342,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var r = try NDArray(f32).arange(allocator, 0, 10, 1);
-        /// defer r.deinit();
+        /// defer r.deinit(allocator);
         /// ```
         pub fn arange(allocator: Allocator, start: T, stop: T, step: T) !Self {
             if (step == 0) return Error.DimensionMismatch;
@@ -393,7 +391,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var l = try NDArray(f32).linspace(allocator, 0, 1, 11);
-        /// defer l.deinit();
+        /// defer l.deinit(allocator);
         /// ```
         pub fn linspace(allocator: Allocator, start: T, stop: T, num: usize) !Self {
             if (num == 0) return try init(allocator, &.{0});
@@ -422,18 +420,18 @@ pub fn NDArray(comptime T: type) type {
         }
 
         /// Return a contiguous copy of the array.
-        pub fn asContiguous(self: Self) !Self {
+        pub fn asContiguous(self: Self, allocator: Allocator) !Self {
             if (self.flags().c_contiguous and self.owns_data) {
-                return self.copy();
+                return self.copy(allocator);
             }
             // Reuse flatten logic but keep shape?
             // Or just implement copy logic that respects strides.
 
-            const result = try init(self.allocator, self.shape);
+            const result = try init(allocator, self.shape);
 
             // Iterate and copy
-            var coords = try self.allocator.alloc(usize, self.rank());
-            defer self.allocator.free(coords);
+            var coords = try allocator.alloc(usize, self.rank());
+            defer allocator.free(coords);
             @memset(coords, 0);
 
             var i: usize = 0;
@@ -455,12 +453,12 @@ pub fn NDArray(comptime T: type) type {
         }
 
         /// Expand the shape of an array.
-        pub fn expandDims(self: Self, axis: usize) !Self {
+        pub fn expandDims(self: Self, allocator: Allocator, axis: usize) !Self {
             if (axis > self.rank()) return Error.IndexOutOfBounds;
 
             const new_rank = self.rank() + 1;
-            const new_shape = try self.allocator.alloc(usize, new_rank);
-            defer self.allocator.free(new_shape);
+            const new_shape = try allocator.alloc(usize, new_rank);
+            defer allocator.free(new_shape);
 
             var j: usize = 0;
             for (0..new_rank) |i| {
@@ -472,7 +470,7 @@ pub fn NDArray(comptime T: type) type {
                 }
             }
 
-            const result = try init(self.allocator, new_shape);
+            const result = try init(allocator, new_shape);
             @memcpy(result.data, self.data);
             return result;
         }
@@ -490,7 +488,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var c = try NDArray(f32).concatenate(allocator, &.{a, b}, 0);
-        /// defer c.deinit();
+        /// defer c.deinit(allocator);
         /// ```
         pub fn concatenate(allocator: Allocator, arrays: []const Self, axis: usize) !Self {
             if (arrays.len == 0) return Error.DimensionMismatch;
@@ -569,7 +567,7 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var s = try NDArray(f32).stack(allocator, &.{a, b}, 0);
-        /// defer s.deinit();
+        /// defer s.deinit(allocator);
         /// ```
         pub fn stack(allocator: Allocator, arrays: []const Self, axis: usize) !Self {
             if (arrays.len == 0) return Error.DimensionMismatch;
@@ -583,10 +581,10 @@ pub fn NDArray(comptime T: type) type {
             // Better: use errdefer
 
             for (arrays, 0..) |arr, i| {
-                expanded_arrays[i] = try arr.expandDims(axis);
+                expanded_arrays[i] = try arr.expandDims(allocator, axis);
             }
             defer {
-                for (expanded_arrays) |*arr| arr.deinit();
+                for (expanded_arrays) |*arr| arr.deinit(allocator);
             }
 
             return concatenate(allocator, expanded_arrays, axis);
@@ -606,11 +604,11 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var b = try arr.broadcastTo(allocator, &.{2, 3});
         /// ```
-        pub fn broadcastTo(self: Self, new_shape: []const usize) !Self {
+        pub fn broadcastTo(self: Self, allocator: Allocator, new_shape: []const usize) !Self {
             if (new_shape.len < self.rank()) return Error.ShapeMismatch;
 
-            const new_strides = try self.allocator.alloc(usize, new_shape.len);
-            errdefer self.allocator.free(new_strides);
+            const new_strides = try allocator.alloc(usize, new_shape.len);
+            errdefer allocator.free(new_strides);
 
             const offset = new_shape.len - self.rank();
 
@@ -635,12 +633,11 @@ pub fn NDArray(comptime T: type) type {
                 }
             }
 
-            const shape_copy = try self.allocator.alloc(usize, new_shape.len);
-            errdefer self.allocator.free(shape_copy);
+            const shape_copy = try allocator.alloc(usize, new_shape.len);
+            errdefer allocator.free(shape_copy);
             @memcpy(shape_copy, new_shape);
 
             return Self{
-                .allocator = self.allocator,
                 .data = self.data,
                 .shape = shape_copy,
                 .strides = new_strides,
@@ -661,14 +658,14 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var p = try arr.permute(allocator, &.{1, 0});
         /// ```
-        pub fn permute(self: Self, axes: []const usize) !Self {
+        pub fn permute(self: Self, allocator: Allocator, axes: []const usize) !Self {
             if (axes.len != self.rank()) return Error.RankMismatch;
 
-            const new_shape = try self.allocator.alloc(usize, self.rank());
-            errdefer self.allocator.free(new_shape);
+            const new_shape = try allocator.alloc(usize, self.rank());
+            errdefer allocator.free(new_shape);
 
-            const new_strides = try self.allocator.alloc(usize, self.rank());
-            errdefer self.allocator.free(new_strides);
+            const new_strides = try allocator.alloc(usize, self.rank());
+            errdefer allocator.free(new_strides);
 
             for (axes, 0..) |axis, i| {
                 if (axis >= self.rank()) return Error.IndexOutOfBounds;
@@ -677,7 +674,6 @@ pub fn NDArray(comptime T: type) type {
             }
 
             return Self{
-                .allocator = self.allocator,
                 .data = self.data,
                 .shape = new_shape,
                 .strides = new_strides,
@@ -699,17 +695,17 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var s = try arr.swapaxes(allocator, 0, 1);
         /// ```
-        pub fn swapaxes(self: Self, axis1: usize, axis2: usize) !Self {
+        pub fn swapaxes(self: Self, allocator: Allocator, axis1: usize, axis2: usize) !Self {
             if (axis1 >= self.rank() or axis2 >= self.rank()) return Error.IndexOutOfBounds;
 
-            var axes = try self.allocator.alloc(usize, self.rank());
-            defer self.allocator.free(axes);
+            var axes = try allocator.alloc(usize, self.rank());
+            defer allocator.free(axes);
 
             for (0..self.rank()) |i| axes[i] = i;
             axes[axis1] = axis2;
             axes[axis2] = axis1;
 
-            return self.permute(axes);
+            return self.permute(allocator, axes);
         }
 
         /// Return a new array with the same data but a new shape.
@@ -725,14 +721,14 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var r = try arr.reshape(allocator, &.{2, 3});
         /// ```
-        pub fn reshape(self: Self, new_shape: []const usize) !Self {
+        pub fn reshape(self: Self, allocator: Allocator, new_shape: []const usize) !Self {
             var new_size: usize = 1;
             for (new_shape) |dim| new_size *= dim;
             if (new_size != self.size()) return Error.DimensionMismatch;
 
             if (self.flags().c_contiguous) {
-                var new_strides = try self.allocator.alloc(usize, new_shape.len);
-                errdefer self.allocator.free(new_strides);
+                var new_strides = try allocator.alloc(usize, new_shape.len);
+                errdefer allocator.free(new_strides);
 
                 if (new_shape.len > 0) {
                     new_strides[new_shape.len - 1] = 1;
@@ -743,19 +739,18 @@ pub fn NDArray(comptime T: type) type {
                     }
                 }
 
-                const new_shape_copy = try self.allocator.alloc(usize, new_shape.len);
+                const new_shape_copy = try allocator.alloc(usize, new_shape.len);
                 @memcpy(new_shape_copy, new_shape);
 
                 return Self{
-                    .allocator = self.allocator,
                     .data = self.data,
                     .shape = new_shape_copy,
                     .strides = new_strides,
                     .owns_data = false,
                 };
             } else {
-                var contig_arr = try self.asContiguous();
-                var res = try contig_arr.reshape(new_shape);
+                var contig_arr = try self.asContiguous(allocator);
+                var res = try contig_arr.reshape(allocator, new_shape);
 
                 // Transfer ownership from contig_arr to res
                 // contig_arr owns data. res is a view of contig_arr.
@@ -771,8 +766,8 @@ pub fn NDArray(comptime T: type) type {
                 res.owns_data = true;
 
                 // Free contig_arr metadata
-                self.allocator.free(contig_arr.shape);
-                self.allocator.free(contig_arr.strides);
+                allocator.free(contig_arr.shape);
+                allocator.free(contig_arr.strides);
                 // Do NOT free contig_arr.data
 
                 return res;
@@ -790,10 +785,10 @@ pub fn NDArray(comptime T: type) type {
         /// Example:
         /// ```zig
         /// var f = try arr.flatten(allocator);
-        /// defer f.deinit();
+        /// defer f.deinit(allocator);
         /// ```
-        pub fn flatten(self: Self) !Self {
-            return self.reshape(&.{self.size()});
+        pub fn flatten(self: Self, allocator: Allocator) !Self {
+            return self.reshape(allocator, &.{self.size()});
         }
 
         /// Transpose the array (reverse dimensions).
@@ -808,13 +803,13 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var t = try arr.transpose(allocator);
         /// ```
-        pub fn transpose(self: Self) !Self {
-            var axes = try self.allocator.alloc(usize, self.rank());
-            defer self.allocator.free(axes);
+        pub fn transpose(self: Self, allocator: Allocator) !Self {
+            var axes = try allocator.alloc(usize, self.rank());
+            defer allocator.free(axes);
             for (0..self.rank()) |i| {
                 axes[i] = self.rank() - 1 - i;
             }
-            return self.permute(axes);
+            return self.permute(allocator, axes);
         }
 
         /// Remove single-dimensional entries from the shape.
@@ -829,14 +824,14 @@ pub fn NDArray(comptime T: type) type {
         /// ```zig
         /// var s = try arr.squeeze(allocator);
         /// ```
-        pub fn squeeze(self: Self) !Self {
+        pub fn squeeze(self: Self, allocator: Allocator) !Self {
             var new_rank: usize = 0;
             for (self.shape) |dim| {
                 if (dim != 1) new_rank += 1;
             }
 
-            var new_shape = try self.allocator.alloc(usize, new_rank);
-            var new_strides = try self.allocator.alloc(usize, new_rank);
+            var new_shape = try allocator.alloc(usize, new_rank);
+            var new_strides = try allocator.alloc(usize, new_rank);
 
             var j: usize = 0;
             for (self.shape, 0..) |dim, i| {
@@ -848,7 +843,6 @@ pub fn NDArray(comptime T: type) type {
             }
 
             return Self{
-                .allocator = self.allocator,
                 .data = self.data,
                 .shape = new_shape,
                 .strides = new_strides,
@@ -863,13 +857,13 @@ pub fn NDArray(comptime T: type) type {
         ///
         /// Example:
         /// ```zig
-        /// const s = try arr.sum();
+        /// const s = try arr.sum(allocator);
         /// ```
-        pub fn sum(self: Self) !T {
+        pub fn sum(self: Self, allocator: Allocator) !T {
             var s: T = 0;
             // Use iterator to handle non-contiguous
-            var iter = try NdIterator.init(self.allocator, self.shape);
-            defer iter.deinit();
+            var iter = try NdIterator.init(allocator, self.shape);
+            defer iter.deinit(allocator);
             while (iter.next()) |coords| {
                 s += try self.get(coords);
             }
@@ -883,10 +877,10 @@ pub fn NDArray(comptime T: type) type {
         ///
         /// Example:
         /// ```zig
-        /// const m = try arr.mean();
+        /// const m = try arr.mean(allocator);
         /// ```
-        pub fn mean(self: Self) !T {
-            const s = try self.sum();
+        pub fn mean(self: Self, allocator: Allocator) !T {
+            const s = try self.sum(allocator);
             if (@typeInfo(T) == .float) {
                 return s / @as(T, @floatFromInt(self.size()));
             } else {
@@ -901,12 +895,12 @@ pub fn NDArray(comptime T: type) type {
         ///
         /// Example:
         /// ```zig
-        /// const m = try arr.min();
+        /// const m = try arr.min(allocator);
         /// ```
-        pub fn min(self: Self) !T {
+        pub fn min(self: Self, allocator: Allocator) !T {
             if (self.size() == 0) return Error.DimensionMismatch;
-            var iter = try NdIterator.init(self.allocator, self.shape);
-            defer iter.deinit();
+            var iter = try NdIterator.init(allocator, self.shape);
+            defer iter.deinit(allocator);
 
             var m: T = undefined;
             if (iter.next()) |coords| {
@@ -929,12 +923,12 @@ pub fn NDArray(comptime T: type) type {
         ///
         /// Example:
         /// ```zig
-        /// const m = try arr.max();
+        /// const m = try arr.max(allocator);
         /// ```
-        pub fn max(self: Self) !T {
+        pub fn max(self: Self, allocator: Allocator) !T {
             if (self.size() == 0) return Error.DimensionMismatch;
-            var iter = try NdIterator.init(self.allocator, self.shape);
-            defer iter.deinit();
+            var iter = try NdIterator.init(allocator, self.shape);
+            defer iter.deinit(allocator);
 
             var m: T = undefined;
             if (iter.next()) |coords| {
@@ -955,7 +949,6 @@ pub fn NDArray(comptime T: type) type {
 /// N-dimensional iterator.
 /// Iterates over coordinates of a given shape.
 pub const NdIterator = struct {
-    allocator: Allocator,
     shape: []const usize,
     coords: []usize,
     first: bool,
@@ -964,15 +957,14 @@ pub const NdIterator = struct {
         const coords = try allocator.alloc(usize, shape.len);
         @memset(coords, 0);
         return NdIterator{
-            .allocator = allocator,
             .shape = shape,
             .coords = coords,
             .first = true,
         };
     }
 
-    pub fn deinit(self: *NdIterator) void {
-        self.allocator.free(self.coords);
+    pub fn deinit(self: *NdIterator, allocator: Allocator) void {
+        allocator.free(self.coords);
     }
 
     pub fn reset(self: *NdIterator) void {
@@ -1043,22 +1035,22 @@ pub fn broadcastShape(allocator: Allocator, shape_a: []const usize, shape_b: []c
 test "core advanced 3d manipulation" {
     const allocator = std.testing.allocator;
     var arr = try NDArray(f32).init(allocator, &.{ 2, 3, 4 });
-    defer arr.deinit();
+    defer arr.deinit(allocator);
     arr.fill(1.0);
 
     try std.testing.expectEqual(arr.rank(), 3);
     try std.testing.expectEqual(arr.size(), 24);
 
     // Test reshape
-    var reshaped = try arr.reshape(&.{ 4, 6 });
-    defer reshaped.deinit();
+    var reshaped = try arr.reshape(allocator, &.{ 4, 6 });
+    defer reshaped.deinit(allocator);
     try std.testing.expectEqual(reshaped.rank(), 2);
     try std.testing.expectEqual(reshaped.shape[0], 4);
     try std.testing.expectEqual(reshaped.shape[1], 6);
 
     // Test transpose
-    var transposed = try arr.permute(&.{ 2, 0, 1 });
-    defer transposed.deinit();
+    var transposed = try arr.permute(allocator, &.{ 2, 0, 1 });
+    defer transposed.deinit(allocator);
     try std.testing.expectEqual(transposed.shape[0], 4);
     try std.testing.expectEqual(transposed.shape[1], 2);
     try std.testing.expectEqual(transposed.shape[2], 3);
@@ -1082,22 +1074,35 @@ test "core primitive types and high dimensions" {
 
     // Test f128
     var arr_f128 = try NDArray(f128).zeros(allocator, &.{ 2, 2 });
-    defer arr_f128.deinit();
+    defer arr_f128.deinit(allocator);
     try arr_f128.set(&.{ 0, 0 }, 1.23456789012345678901234567890123456789);
     const val = try arr_f128.get(&.{ 0, 0 });
     try std.testing.expectApproxEqAbs(val, 1.23456789012345678901234567890123456789, 1e-30);
 
     // Test i128
     var arr_i128 = try NDArray(i128).zeros(allocator, &.{2});
-    defer arr_i128.deinit();
+    defer arr_i128.deinit(allocator);
     try arr_i128.set(&.{0}, 123456789012345678901234567890);
     try std.testing.expectEqual(try arr_i128.get(&.{0}), 123456789012345678901234567890);
 
     // Test 5D array
     var arr_5d = try NDArray(u8).zeros(allocator, &.{ 2, 2, 2, 2, 2 });
-    defer arr_5d.deinit();
+    defer arr_5d.deinit(allocator);
     try std.testing.expectEqual(arr_5d.rank(), 5);
     try std.testing.expectEqual(arr_5d.size(), 32);
     try arr_5d.set(&.{ 1, 1, 1, 1, 1 }, 255);
     try std.testing.expectEqual(try arr_5d.get(&.{ 1, 1, 1, 1, 1 }), 255);
+}
+
+test "core flags" {
+    const allocator = std.testing.allocator;
+    var arr = try NDArray(f32).zeros(allocator, &.{ 2, 3 });
+    defer arr.deinit(allocator);
+
+    const f = arr.flags();
+    try std.testing.expect(f.c_contiguous);
+    try std.testing.expect(!f.f_contiguous);
+    try std.testing.expect(f.owndata);
+    try std.testing.expect(f.writeable);
+    try std.testing.expect(f.aligned);
 }

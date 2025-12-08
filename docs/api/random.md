@@ -1,49 +1,89 @@
-# Random Sampling
+# Random API Reference
 
-The `random` module provides random number generation.
+The `random` module provides a random number generator and various probability distributions.
 
-## Random
+## Random Struct
 
-Wrapper around Zig's PRNG.
+The core of the module is the `Random` struct, which wraps a random number generator.
 
-### `init`
+```zig
+pub const Random = struct {
+    // ... internal state ...
+};
+```
 
-Initialize with a seed.
+### init
+
+Initialize a new Random number generator with a seed.
 
 ```zig
 pub fn init(seed: u64) Random
 ```
 
-### `uniform`
+## Distributions
 
-Generate uniform random numbers [0, 1).
+### uniform
 
-```zig
-pub fn uniform(self: *Random, allocator: Allocator, shape: []const usize) !NDArray(f32)
-```
-
-### `normal`
-
-Generate normal random numbers.
+Generate a random float in the range [0, 1).
 
 ```zig
-pub fn normal(self: *Random, allocator: Allocator, shape: []const usize, mean: f32, stddev: f32) !NDArray(f32)
+pub fn uniform(self: *Random, comptime T: type) T
 ```
 
-## Example
+### normal
+
+Generate a random float from a normal distribution (mean=0, std=1).
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const Random = num.random.Random;
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var rng = Random.init(42);
-    var arr = try rng.uniform(allocator, &.{2, 2});
-    defer arr.deinit();
-}
+pub fn normal(self: *Random, comptime T: type) T
 ```
 
+### exponential
+
+Generate a random float from an exponential distribution.
+
+```zig
+pub fn exponential(self: *Random, comptime T: type) T
+```
+
+### poisson
+
+Generate a random integer from a Poisson distribution.
+
+```zig
+pub fn poisson(self: *Random, comptime T: type, lam: f64) T
+```
+
+### randint
+
+Generate a random integer in the range [low, high).
+
+```zig
+pub fn randint(self: *Random, comptime T: type, low: T, high: T) T
+```
+
+## Array Operations
+
+### shuffle
+
+Shuffle an array in-place.
+
+```zig
+pub fn shuffle(self: *Random, comptime T: type, arr: NDArray(T)) void
+```
+
+### permutation
+
+Return a permuted range or array.
+
+```zig
+pub fn permutation(self: *Random, allocator: Allocator, comptime T: type, n: usize) !NDArray(T)
+```
+
+### choice
+
+Generates a random sample from a given 1-D array.
+
+```zig
+pub fn choice(self: *Random, allocator: Allocator, comptime T: type, a: NDArray(T), size: usize, replace: bool) !NDArray(T)
+```
