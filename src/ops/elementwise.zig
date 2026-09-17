@@ -734,13 +734,12 @@ pub fn clip(
 }
 
 /// Return elements chosen from `x` or `y` depending on boolean `condition`.
+/// Broadcasts all three inputs; dtype is promoted from `x` and `y`.
 pub fn where(
     condition: Array,
     x: Array,
     y: Array,
-    options: BinaryOpOptions,
 ) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    _ = options;
     const bc_xy = try broadcast2(x, y);
     const bc_all = try broadcast2(condition, bc_xy.a);
     const target_shape = bc_all.target_shape;

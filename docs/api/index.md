@@ -26,3 +26,7 @@ Welcome to the `num.zig` API reference. `num.zig` provides a comprehensive, type
 - [**Sorting & Sets**](/api/sort): In-place sort, argsort, binary search, unique sets, intersections.
 - [**Polynomials**](/api/poly): Polynomial evaluation, derivatives, anti-derivatives, roots, coefficient arithmetic, curve fitting.
 - [**Serialization & I/O**](/api/io): NZIG v1.0 binary files and CSV/delimited text import/export.
+
+## Top-Level Shortcuts
+
+Deliberate shortcuts for the most common operations (identical semantics to their namespaced counterparts): array creation (`num.zeros`, `num.ones`, `num.full`, `num.empty`, `num.arange`, `num.linspace`, `num.logspace`, `num.geomspace`, `num.eye`, `num.identity`, `num.diag`, `num.triu`, `num.tril`, `num.fromSlice`), `num.dot`/`num.matmul`, `num.equal`, `num.notEqual`, `num.all`, `num.any`, and `num.save`/`num.load`.

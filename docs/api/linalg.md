@@ -14,6 +14,8 @@ pub fn outer(a: Array, b: Array, options: struct { dtype: ?DType = null }) !Arra
 pub fn kron(a: Array, b: Array, options: struct { dtype: ?DType = null }) !Array;
 ```
 
+`dot` and `inner` are deliberate aliases of `matmul` with identical semantics.
+
 ---
 
 ## Solvers and Inverses

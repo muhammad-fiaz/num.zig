@@ -13,6 +13,8 @@ pub fn variance(arr: Array, options: struct { axis: ?isize = null, ddof: usize =
 pub fn stdDev(arr: Array, options: struct { axis: ?isize = null, ddof: usize = 0, keepDims: bool = false, dtype: ?DType = null }) !Array;
 ```
 
+`mean` shares semantics with `num.reduce.mean`. `median`, `variance`, and `stdDev` share result semantics with their `num.reduce` counterparts; the `stats` variants additionally support `ddof` (variance/stdDev) for degrees-of-freedom correction.
+
 ---
 
 ## Quantiles & Order Statistics

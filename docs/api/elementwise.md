@@ -93,7 +93,7 @@ pub fn lgamma(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn erf(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn erfc(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn clip(a: Array, options: struct { min: ?anytype = null, max: ?anytype = null }) !Array;
-pub fn where(condition: Array, x: Array, y: Array, options: struct { dtype: ?DType = null }) !Array;
+pub fn where(condition: Array, x: Array, y: Array) !Array;
 ```
 
 ---

@@ -59,7 +59,7 @@ var ab = try num.ops.absolute(a, .{}); defer ab.deinit();
 - **Conditional Selection**:
   ```zig
   // where(condition, x, y) selects elements from x where cond is true, else y
-  var out = try num.ops.where(cond_arr, x_arr, y_arr, .{});
+  var out = try num.ops.where(cond_arr, x_arr, y_arr);
   defer out.deinit();
   ```
 
