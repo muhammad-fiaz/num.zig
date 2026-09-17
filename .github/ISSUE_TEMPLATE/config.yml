@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/muhammad-fiaz/num.zig/discussions
+    about: Ask questions and discuss with the community.
+  - name: Support & Sponsorship
+    url: https://github.com/sponsors/muhammad-fiaz
+    about: Support the author and ongoing development.

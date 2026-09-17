@@ -1,4 +1,4 @@
-name: Deploy VitePress site to Pages
+name: Deploy Docs
 
 on:
   push:
@@ -15,62 +15,31 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build:
+  build-docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.1
-
-      - name: Run Zig tests
-        run: zig build test --summary all
-
-      - name: Build Zig examples
-        run: |
-          zig build example-basics
-          zig build example-manipulation
-          zig build example-math
-          zig build example-linalg
-          zig build example-random
-          zig build example-ml
-          zig build example-fft
-          zig build example-indexing
-          zig build example-signal_poly
-          zig build example-setops
-          zig build example-complex
-          zig build example-advanced_manipulation
-          zig build example-algorithms
-          zig build example-csv_linalg_masking
-          zig build example-comprehensive
-
-      - name: Zig format check
-        run: zig fmt --check src/ examples/
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
+        uses: actions/checkout@v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Cache Bun modules
+        uses: actions/cache@v6
         with:
-          enablement: true
-          token: ${{ secrets.GH_TOKEN }}
+          path: docs/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('docs/bun.lock', 'docs/package.json') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
 
       - name: Install dependencies
         working-directory: ./docs
@@ -80,25 +49,15 @@ jobs:
         working-directory: ./docs
         run: bun run docs:build
 
-      - name: Check build output
-        run: |
-          if [ -d "docs/.vitepress/dist" ]; then
-            echo "Build successful"
-            ls -la docs/.vitepress/dist
-          else
-            echo "Build failed - dist directory not found"
-            ls -la docs/.vitepress/
-            exit 1
-          fi
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
-    needs: build
+    needs: build-docs
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     name: Deploy
 
     environment:
@@ -108,6 +67,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.GH_TOKEN }}
+        uses: actions/deploy-pages@v5
