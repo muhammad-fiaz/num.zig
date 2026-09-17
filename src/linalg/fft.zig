@@ -17,7 +17,7 @@ const DType = @import("../core/dtype.zig").DType;
 pub const Complex64 = std.math.Complex(f32);
 pub const Complex128 = std.math.Complex(f64);
 
-pub const FftOptions = struct {
+const FftOptions = struct {
     axis: isize = -1,
     norm: enum { backward, ortho, forward } = .backward,
 };
@@ -223,26 +223,36 @@ pub fn rfftfreq(
     return out;
 }
 
+/// Shared shift kernel for fftshift/ifftshift (sign selects direction).
+fn shiftCenter(
+    a: Array,
+    comptime sign: isize,
+    axis_opt: ?isize,
+) (ShapeError || std.mem.Allocator.Error)!Array {
+    const roll = @import("../manip/transpose.zig").roll;
+    const s = a.shape();
+    if (axis_opt) |ax| {
+        const norm_ax = try s.normalizeAxis(ax);
+        const half: isize = @intCast(s.dims[norm_ax] / 2);
+        return roll(a, .{ .shift = sign * half, .axis = @intCast(norm_ax) });
+    }
+    var cur = try a.clone();
+    errdefer cur.deinit();
+    for (0..s.ndim) |d| {
+        const half: isize = @intCast(s.dims[d] / 2);
+        const next = try roll(cur, .{ .shift = sign * half, .axis = @intCast(d) });
+        cur.deinit();
+        cur = next;
+    }
+    return cur;
+}
+
 /// Shifts zero-frequency component to center of spectrum along specified axes.
 pub fn fftshift(
     a: Array,
     options: struct { axis: ?isize = null },
 ) (ShapeError || std.mem.Allocator.Error)!Array {
-    const s = a.shape();
-    if (options.axis) |ax| {
-        const norm_ax = try s.normalizeAxis(ax);
-        const shift_val = @as(isize, @intCast(s.dims[norm_ax] / 2));
-        return @import("../manip/transpose.zig").roll(a, .{ .shift = shift_val, .axis = @intCast(norm_ax) });
-    } else {
-        var cur = try a.clone();
-        for (0..s.ndim) |d| {
-            const shift_val = @as(isize, @intCast(s.dims[d] / 2));
-            const next = try @import("../manip/transpose.zig").roll(cur, .{ .shift = shift_val, .axis = @intCast(d) });
-            cur.deinit();
-            cur = next;
-        }
-        return cur;
-    }
+    return shiftCenter(a, 1, options.axis);
 }
 
 /// Inverse of fftshift.
@@ -250,21 +260,7 @@ pub fn ifftshift(
     a: Array,
     options: struct { axis: ?isize = null },
 ) (ShapeError || std.mem.Allocator.Error)!Array {
-    const s = a.shape();
-    if (options.axis) |ax| {
-        const norm_ax = try s.normalizeAxis(ax);
-        const shift_val = -@as(isize, @intCast(s.dims[norm_ax] / 2));
-        return @import("../manip/transpose.zig").roll(a, .{ .shift = shift_val, .axis = @intCast(norm_ax) });
-    } else {
-        var cur = try a.clone();
-        for (0..s.ndim) |d| {
-            const shift_val = -@as(isize, @intCast(s.dims[d] / 2));
-            const next = try @import("../manip/transpose.zig").roll(cur, .{ .shift = shift_val, .axis = @intCast(d) });
-            cur.deinit();
-            cur = next;
-        }
-        return cur;
-    }
+    return shiftCenter(a, -1, options.axis);
 }
 
 test "fft and ifft roundtrip" {

@@ -36,7 +36,7 @@ inline fn addT(comptime T: type, a: T, b: T) T {
     return a + b;
 }
 
-pub const MatmulOptions = struct {
+const MatmulOptions = struct {
     dtype: ?DType = null,
 };
 

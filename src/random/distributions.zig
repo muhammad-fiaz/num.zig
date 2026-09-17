@@ -12,9 +12,20 @@ const ShapeError = @import("../core/error.zig").ShapeError;
 const DTypeError = @import("../core/error.zig").DTypeError;
 const IndexError = @import("../core/error.zig").IndexError;
 const Prng = @import("engine.zig").Prng;
-const getDefaultPrng = @import("engine.zig").getDefaultPrng;
 
-pub const UniformOptions = struct {
+// Local fallback seeded from a thread-local counter; avoids hidden shared mutable state.
+// Callers seeking reproducibility should pass an explicit `.rng`.
+inline fn resolvePrng(rng_opt: ?*Prng, fallback: *?Prng) *Prng {
+    if (rng_opt) |r| return r;
+    const S = struct {
+        threadlocal var counter: u64 = 0;
+    };
+    S.counter +%= 1;
+    fallback.* = Prng.init(0x853C49E6748FEA9B ^ (S.counter *% 0xBF58476D1CE4E5B9));
+    return &fallback.*.?;
+}
+
+const UniformOptions = struct {
     shape: []const usize = &.{},
     low: f64 = 0.0,
     high: f64 = 1.0,
@@ -35,7 +46,8 @@ pub fn uniform(
     });
     errdefer out.deinit();
 
-    var prng = options.rng orelse getDefaultPrng();
+    var fallback: ?Prng = null;
+    var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
     const range = options.high - options.low;
 
@@ -77,7 +89,7 @@ pub fn rand(
     });
 }
 
-pub const NormalOptions = struct {
+const NormalOptions = struct {
     shape: []const usize = &.{},
     loc: f64 = 0.0,
     scale: f64 = 1.0,
@@ -98,7 +110,8 @@ pub fn normal(
     });
     errdefer out.deinit();
 
-    var prng = options.rng orelse getDefaultPrng();
+    var fallback: ?Prng = null;
+    var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
     inline for (std.meta.fields(DType)) |field| {
@@ -139,7 +152,7 @@ pub fn randn(
     });
 }
 
-pub const IntegersOptions = struct {
+const IntegersOptions = struct {
     shape: []const usize = &.{},
     low: i64 = 0,
     high: i64 = 100,
@@ -164,7 +177,8 @@ pub fn integers(
     });
     errdefer out.deinit();
 
-    var prng = options.rng orelse getDefaultPrng();
+    var fallback: ?Prng = null;
+    var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
     inline for (std.meta.fields(DType)) |field| {
@@ -190,7 +204,7 @@ pub fn integers(
     return out;
 }
 
-pub const ChoiceOptions = struct {
+const ChoiceOptions = struct {
     size: ?usize = null,
     replace: bool = true,
     rng: ?*Prng = null,
@@ -207,7 +221,8 @@ pub fn choice(
     const n = s.dims[0];
     if (n == 0) return ShapeError.EmptyArray;
 
-    var prng = options.rng orelse getDefaultPrng();
+    var fallback: ?Prng = null;
+    var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
     // 0D scalar choice
@@ -270,7 +285,7 @@ pub fn choice(
     return out;
 }
 
-pub const ShuffleOptions = struct {
+const ShuffleOptions = struct {
     rng: ?*Prng = null,
 };
 
@@ -284,7 +299,8 @@ pub fn shuffle(
     const n = s.dims[0];
     if (n <= 1) return;
 
-    var prng = options.rng orelse getDefaultPrng();
+    var fallback: ?Prng = null;
+    var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
     if (s.ndim == 1 and arr.isContiguous()) {

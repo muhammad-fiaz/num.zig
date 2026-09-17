@@ -15,6 +15,9 @@ defer arr.deinit();
 var s = try num.reduce.sum(arr, .{});   defer s.deinit(); // 55.0
 var p = try num.reduce.prod(arr, .{});  defer p.deinit(); // 3628800.0
 var m = try num.reduce.mean(arr, .{});  defer m.deinit(); // 5.5
+var med = try num.reduce.median(arr, .{}); defer med.deinit(); // 5.5
+var v = try num.reduce.variance(arr, .{}); defer v.deinit();
+var sd = try num.reduce.stdDev(arr, .{}); defer sd.deinit();
 var min_v = try num.reduce.min(arr, .{}); defer min_v.deinit(); // 1.0
 var max_v = try num.reduce.max(arr, .{}); defer max_v.deinit(); // 10.0
 

@@ -154,38 +154,7 @@ fn readScalar(comptime TargetT: type, arr: Array, offset: isize) TargetT {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));
             const elem = if (offset >= 0) ptr[@as(usize, @intCast(offset))] else ptr[0];
-            if (TargetT == SrcT) return elem;
-            return switch (@typeInfo(TargetT)) {
-                .float => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @floatFromInt(elem),
-                    .float, .comptime_float => @floatCast(elem),
-                    .bool => if (elem) 1.0 else 0.0,
-                    .@"struct" => @floatCast(elem.re),
-                    else => 0.0,
-                },
-                .int => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @intCast(elem),
-                    .float, .comptime_float => @intFromFloat(elem),
-                    .bool => if (elem) 1 else 0,
-                    .@"struct" => @intFromFloat(elem.re),
-                    else => 0,
-                },
-                .bool => switch (@typeInfo(SrcT)) {
-                    .bool => elem,
-                    .int, .comptime_int => elem != 0,
-                    .float, .comptime_float => elem != 0.0,
-                    .@"struct" => elem.re != 0.0 or elem.im != 0.0,
-                    else => false,
-                },
-                .@"struct" => switch (@typeInfo(SrcT)) {
-                    .@"struct" => .{ .re = @floatCast(elem.re), .im = @floatCast(elem.im) },
-                    .float, .comptime_float => .{ .re = @floatCast(elem), .im = 0.0 },
-                    .int, .comptime_int => .{ .re = @floatFromInt(elem), .im = 0.0 },
-                    .bool => .{ .re = if (elem) 1.0 else 0.0, .im = 0.0 },
-                    else => .{ .re = 0.0, .im = 0.0 },
-                },
-                else => 0,
-            };
+            return DType.castValue(TargetT, SrcT, elem);
         }
     }
     return if (TargetT == bool) false else if (@typeInfo(TargetT) == .@"struct") TargetT.init(0.0, 0.0) else 0;
@@ -310,18 +279,20 @@ pub fn isFinite(a: Array) (ShapeError || std.mem.Allocator.Error)!Array {
     return out;
 }
 
-pub const IsCloseOptions = struct {
+const IsCloseOptions = struct {
     rtol: f64 = 1e-5,
     atol: f64 = 1e-8,
     equalNan: bool = false,
 };
 
 /// Returns a boolean array where two arrays are elementwise equal within a tolerance.
+/// Optional inline config: `.{ .rtol = 1e-5, .atol = 1e-8, .equalNan = false }`; may be omitted.
 pub fn isClose(
     a: Array,
     b: Array,
     options: IsCloseOptions,
 ) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const opts = options;
     const bc = try broadcast2(a, b);
     const target_shape = bc.target_shape;
 
@@ -340,12 +311,12 @@ pub fn isClose(
 
         var close = false;
         if (std.math.isNan(va) or std.math.isNan(vb)) {
-            close = options.equalNan and std.math.isNan(va) and std.math.isNan(vb);
+            close = opts.equalNan and std.math.isNan(va) and std.math.isNan(vb);
         } else if (std.math.isInf(va) or std.math.isInf(vb)) {
             close = (va == vb);
         } else {
             const diff = @abs(va - vb);
-            close = diff <= (options.atol + options.rtol * @abs(vb));
+            close = diff <= (opts.atol + opts.rtol * @abs(vb));
         }
 
         writeScalar(out, out_item.offset, close);
@@ -355,6 +326,7 @@ pub fn isClose(
 }
 
 /// Returns true if two arrays are elementwise equal within a tolerance.
+/// Optional inline config may be omitted.
 pub fn allClose(
     a: Array,
     b: Array,

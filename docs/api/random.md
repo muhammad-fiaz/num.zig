@@ -13,16 +13,13 @@ pub const Prng = struct {
     pub fn init(seed: u64) Prng;
     pub fn random(self: *Prng) std.Random;
 };
-
-/// Get or create a default seeded Prng (thread-local).
-pub fn getDefaultPrng() Prng;
 ```
 
 ---
 
 ## Distribution Functions
 
-All distribution functions accept an optional `rng: ?*Prng` — pass `null` to use the default thread-local PRNG.
+All distribution functions accept an optional `rng: ?*Prng` — pass an explicit `Prng` for reproducibility, or `null` for system-entropy seeding (no shared global state).
 
 ```zig
 pub const UniformOptions = struct {

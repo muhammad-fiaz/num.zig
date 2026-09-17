@@ -182,6 +182,44 @@ pub const DType = enum(u8) {
             return signed_t;
         }
     }
+
+    /// Centralized scalar conversion used by elementwise, reduction, and
+    /// comparison kernels. Single canonical implementation reusing Zig
+    /// `@intCast`, `@floatCast`, `@floatFromInt`, and `@intFromFloat`.
+    pub inline fn castValue(comptime DstT: type, comptime SrcT: type, val: SrcT) DstT {
+        if (DstT == SrcT) return val;
+        return switch (@typeInfo(DstT)) {
+            .float => switch (@typeInfo(SrcT)) {
+                .int, .comptime_int => @floatFromInt(val),
+                .float, .comptime_float => @floatCast(val),
+                .bool => if (val) 1.0 else 0.0,
+                .@"struct" => @floatCast(val.re),
+                else => 0.0,
+            },
+            .int => switch (@typeInfo(SrcT)) {
+                .int, .comptime_int => @intCast(val),
+                .float, .comptime_float => @intFromFloat(val),
+                .bool => if (val) 1 else 0,
+                .@"struct" => @intFromFloat(val.re),
+                else => 0,
+            },
+            .bool => switch (@typeInfo(SrcT)) {
+                .bool => val,
+                .int, .comptime_int => val != 0,
+                .float, .comptime_float => val != 0.0,
+                .@"struct" => val.re != 0.0 or val.im != 0.0,
+                else => false,
+            },
+            .@"struct" => switch (@typeInfo(SrcT)) {
+                .@"struct" => .{ .re = @floatCast(val.re), .im = @floatCast(val.im) },
+                .float, .comptime_float => .{ .re = @floatCast(val), .im = 0.0 },
+                .int, .comptime_int => .{ .re = @floatFromInt(val), .im = 0.0 },
+                .bool => .{ .re = if (val) 1.0 else 0.0, .im = 0.0 },
+                else => .{ .re = 0.0, .im = 0.0 },
+            },
+            else => 0,
+        };
+    }
 };
 
 test "dtype size and alignment" {

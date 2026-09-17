@@ -1,3 +1,5 @@
+<h1 align="center">Num.Zig</h1>
+
 <div align="center">
 
 <a href="https://muhammad-fiaz.github.io/num.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
@@ -27,7 +29,7 @@
 `num.zig` is a modern, native numerical computing library for Zig, providing high-performance N-dimensional arrays, vectorized SIMD math, linear algebra, statistics, pseudo-random number distributions, sorting, polynomial analysis, and portable **NZIG v1.0** binary array serialization.
 
 > [!IMPORTANT]
-> **v0.0.2 brings major new changes.** It delivers better performance, native Zig 0.16.0 compliance, zero external dependencies, Small Buffer Optimization (SBO) for multidimensional shapes and strides, and the portable NZIG v1.0 binary serialization format. If you are migrating, review the updated clean namespace usage below (`num.ops`, `num.linalg`, `num.poly`, `num.manip`). The project is in active development and contributions are welcome.
+> **v0.0.3 is the current release.** It completes the production multidimensional array system with robust shape/stride handling, full broadcasting, views, elementwise math, bitwise and complex helpers, reductions, statistics, sorting, linear algebra, FFT, random generation, polynomials with root finding, sparse matrices with inline-configured iterative solvers, parallel execution via `num.parallel.run`, SIMD kernels, and portable NZIG v1.0 serialization. If you are migrating from v0.0.2, review the updated clean namespace usage below (`num.ops`, `num.linalg`, `num.poly`, `num.manip`). The project is in active development and contributions are welcome.
 
 > [!TIP]
 > If you build with num.zig, make sure to give it a star!
@@ -71,16 +73,18 @@
 | **N-Dimensional Array (`Array`)** | High-performance unified multidimensional container with Small Buffer Optimization (SBO) up to 8 dimensions inline with zero heap overhead for shapes, strides, and dimension metadata. |
 | **Complete DType System** | Full native support across floating-point (`f64`, `f32`, `f16`), complex numbers (`c128`, `c64`), signed integers (`i64`, `i32`, `i16`, `i8`), unsigned integers (`u64`, `u32`, `u16`, `u8`), and `bool` with deterministic numeric type promotion. |
 | **Explicit Memory Discipline** | Clean allocator discipline with no hidden global allocations; zero-copy views for slicing, reshaping, transposing, flattening, and broadcasting. |
-| **Vectorized Math & SIMD** | Vectorized kernels for arithmetic (`add`, `subtract`, `multiply`, `divide`, `pow`), trigonometry (`sin`, `cos`, `tan`, hyperbolic variants), logarithms, exponentials, clipping, and boolean conditionals (`where`). |
+| **Vectorized Math & SIMD** | Vectorized kernels for arithmetic (`add`, `subtract`/`sub`, `multiply`/`mul`, `divide`/`div`, `pow`/`power`, `remainder`/`mod`, `minimum`, `maximum`), unary math (`negate`/`negative`, `positive`, `abs`/`absolute`, `sqrt`, `square`, `reciprocal`, `sign`, `floor`/`ceil`/`trunc`/`round`), trigonometry (`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `hypot`), hyperbolics (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`), exponentials/logarithms (`exp`, `exp2`, `expm1`, `log`, `log2`, `log10`, `log1p`), special functions (`gamma`, `lgamma`, `erf`, `erfc`, `cbrt`), clipping, and boolean conditionals (`where`). |
+| **Bitwise Integers (`num.ops`)** | Integer-only broadcast operations (`bitwiseAnd`, `bitwiseOr`, `bitwiseXor`, `bitwiseNot`, `leftShift`, `rightShift`) with population utilities (`bitCount`/`popcount`, `clz`/`leadingZeros`, `ctz`/`trailingZeros`); floating-point inputs are rejected. |
+| **Complex Helpers (`num.ops`)** | Complex construction via `c64`/`c128` dtypes with `conj`/`conjugate`, `real`, `imag`, `magnitude`, and `phase`; complex arithmetic, matrix operations, FFT, and statistics paths are covered. |
 | **Multidimensional Broadcasting** | Automatic broadcast semantics for binary operations following standard dimension-alignment rules, plus explicit zero-copy `broadcastTo` views. |
 | **Linear Algebra (`num.linalg`)** | Cache-blocked matrix multiplication (`matmul`), inner/outer products, vector and matrix norms (L1, L2, Linf, Frobenius), LU decomposition, QR decomposition (Householder reflections), Cholesky factorization, linear system solver (`solve`), matrix inverse (`inv`), determinant (`det`), matrix trace (`trace`), and rank (`matrixRank`). |
 | **Spectral & Decompositions** | General eigenvalue & eigenvector solver (`eig`, `eigvals`) via Hessenberg reduction and QR iteration, and Singular Value Decomposition (`svd`) via Golub-Kahan bidiagonalization. |
 | **Fast Fourier Transform (`num.fft`)** | 1D and multidimensional Fast Fourier Transform (`fft`, `ifft`) with Radix-2 Cooley-Tukey and direct DFT fallback, supporting complex inputs and backward/ortho/forward normalizations. |
-| **Sparse Matrices & Solvers (`num.sparse`)** | Compressed Sparse Row (`CsrMatrix`) and Compressed Sparse Column (`CscMatrix`) formats with memory-efficient storage, matrix-vector multiplication, dense roundtripping, and iterative solvers: Conjugate Gradient (`cg`) and Restarted GMRES (`gmres`). |
+| **Sparse Matrices & Solvers (`num.sparse`)** | Compressed Sparse Row (`CsrMatrix`) and Compressed Sparse Column (`CscMatrix`) formats with memory-efficient storage, matrix-vector multiplication, dense roundtripping, and inline-configured iterative solvers: Conjugate Gradient (`cg`) and Restarted GMRES (`gmres`), e.g. `num.sparse.cg(A, b, .{ .tol = 1e-8, .maxIter = 1000 })`. |
 | **Parallel CPU Execution (`num.parallel`)** | Deterministic data-parallel engine (`run`) utilizing native Zig 0.16.0 `std.Thread` with automatic CPU core count detection, inline configuration (`.{ .workers, .chunkSize }`), and sequential fallback for small workloads. |
-| **Reductions (`num.reduce`)** | Reductions along global and specific axes: `sum`, `prod`, `mean`, `min`, `max`, `argmin`, `argmax`, `all`, `any`, `cumsum`, and `cumprod`. |
-| **Sorting & Searching (`num.sort`)** | In-place and copy quicksort, `argsort` permutation generation, binary search (`searchSorted`), distinct value extraction (`unique`), and linear index filtering (`flatNonzero`). |
-| **Polynomial Calculus (`num.poly`)** | Horner's method evaluation (`poly.val`), least-squares polynomial curve fitting (`poly.fit`), polynomial derivatives (`poly.der`), and indefinite integration (`poly.integ`). |
+| **Reductions (`num.reduce`)** | Reductions along global and specific axes with `keepDims` and negative axes: `sum`, `prod`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `all`, `any`, `countNonzero`, `cumsum`, `cumprod`, `cummin`, `cummax`, and `diff`. |
+| **Sorting & Searching (`num.sort`)** | In-place and copy quicksort, `argsort` permutation generation, binary search (`searchSorted`), distinct value extraction (`unique`), linear index filtering (`flatNonzero`, `nonzero`, `argwhere`), set operations (`intersect1d`, `union1d`, `setdiff1d`, `isin`), and coordinate utilities (`ravelIndex`, `unravelIndex`, `indices`). |
+| **Polynomial Calculus (`num.poly`)** | Horner's method evaluation (`poly.val`), least-squares polynomial curve fitting (`poly.fit`), polynomial derivatives (`poly.der`), indefinite integration (`poly.integ`), root finding (`poly.roots` with analytic linear/quadratic and Durand-Kerner general solver), and coefficient arithmetic (`poly.add`, `poly.sub`, `poly.mul`). |
 | **Descriptive Statistics (`num.stats`)** | Mean, variance, standard deviation, median, quantiles/percentiles (with linear, lower, higher, midpoint, and nearest interpolation), covariance matrices, Pearson correlation matrices, and histogram binning. |
 | **Random Number Distributions (`num.random`)** | Seedable pseudo-random engine (`Prng`), uniform float distributions, standard normal distribution (Box-Muller transform), discrete random integers, random choice sampling, and Fisher-Yates array shuffling. |
 | **Native NZIG v1.0 Serialization (`num.io`)** | Portable, deterministic, 64-byte aligned, 128-byte header binary file format independent of host compiler ABI, supporting 32-bit and 64-bit systems across Windows, Linux, and macOS. Also includes delimited text I/O (`savetxt`, `loadtxt`). |
@@ -138,20 +142,20 @@ zig build -Dtarget=x86-windows
 
 ### Method 1: Zig Fetch (Recommended)
 
-**Latest Release (v0.0.2)**
+**Latest Release (v0.0.3)**
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz
+```
+
+**Previous Releases (v0.0.2, v0.0.1)**
 
 ```bash
 zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.2.tar.gz
 ```
 
-**Previous Release (v0.0.1)**
-
-```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.1.tar.gz
-```
-
 > [!WARNING]
-> Zig **0.15** is deprecated. New projects should use **Zig 0.16.0+** with **num.zig v0.0.2**.
+> Zig **0.15** is deprecated. New projects should use **Zig 0.16.0+** with **num.zig v0.0.3**.
 
 ### Method 2: Zig Fetch (Latest Development Build)
 
@@ -166,7 +170,7 @@ zig fetch --save git+https://github.com/muhammad-fiaz/num.zig.git
 ```zig
 .dependencies = .{
     .num = .{
-        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.2.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz",
         .hash = "...", // Run `zig fetch --save <url>` to generate the hash automatically.
     },
 },
@@ -216,7 +220,7 @@ pub fn main() !void {
     // 1. Create a 2x3 matrix
     var a = try num.arange(allocator, .{ .start = 0, .stop = 6, .dtype = .f64 });
     defer a.deinit();
-    var a_2x3 = try a.reshape(.{ .shape = &.{ 2, 3 } });
+    var a_2x3 = try num.manip.reshape(a, .{ .shape = &.{ 2, 3 } });
     defer a_2x3.deinit();
 
     // 2. Create another 2x3 matrix of ones
@@ -285,13 +289,24 @@ pub fn main() !void {
     var p = try num.fromSlice(allocator, f64, .{ .data = &coeffs, .shape = &.{3} });
     defer p.deinit();
 
-    // Evaluate p(2.0)
-    const y = try num.poly.val(p, 2.0); // 2*(4) - 3*(2) + 5 = 7.0
-    std.debug.print("p(2.0) = {d:.1}\n", .{y});
+    // Evaluate p(2.0) = 2*(4) - 3*(2) + 5 = 7.0
+    const xv = [_]f64{2.0};
+    var x = try num.fromSlice(allocator, f64, .{ .data = &xv, .shape = &.{} });
+    defer x.deinit();
+    var pv = try num.poly.val(p, x);
+    defer pv.deinit();
+    std.debug.print("p(2.0) = {d:.1}\n", .{try pv.get(f64, &.{})});
 
     // Derivative: p'(x) = 4x - 3
-    var dp = try num.poly.der(allocator, p);
+    var dp = try num.poly.der(p, 1);
     defer dp.deinit();
+
+    // Roots: x^2 - 5x + 6 = (x-2)(x-3)
+    const qd = [_]f64{ 1.0, -5.0, 6.0 };
+    var q = try num.fromSlice(allocator, f64, .{ .data = &qd, .shape = &.{3} });
+    defer q.deinit();
+    var rts = try num.poly.roots(q);
+    defer rts.deinit();
 
     // Linear fit: y = 2x + 1
     const x_vals = [_]f64{ 0.0, 1.0, 2.0, 3.0 };
@@ -301,7 +316,7 @@ pub fn main() !void {
     var y_arr = try num.fromSlice(allocator, f64, .{ .data = &y_vals, .shape = &.{4} });
     defer y_arr.deinit();
 
-    var line_fit = try num.poly.fit(allocator, x_arr, y_arr, 1);
+    var line_fit = try num.poly.fit(x_arr, y_arr, 1);
     defer line_fit.deinit();
     std.debug.print("Fit: slope={d:.2}, intercept={d:.2}\n", .{
         try line_fit.get(f64, &.{0}),
@@ -322,8 +337,8 @@ pub fn main() !void {
     var arr = try num.ones(allocator, .{ .shape = &.{ 4, 4 }, .dtype = .f64 });
     defer arr.deinit();
 
-    // Save directly to binary NZIG format via fluent array method
-    try arr.save("weights.nzig");
+    // Save directly to binary NZIG format
+    try num.save(allocator, "weights.nzig", arr);
 
     // Load back with metadata intact
     var loaded = try num.load(allocator, "weights.nzig");
@@ -352,7 +367,9 @@ The `examples/` directory contains runnable examples demonstrating the full suit
 **Vectorized Math & Operations:**
 - [`elementwise`](examples/elementwise.zig) - Vectorized arithmetic, trigonometric functions, exponentials, and boolean masking
 - [`broadcasting`](examples/broadcasting.zig) - Multidimensional broadcasting rules and explicit `broadcastTo`
-- [`reductions`](examples/reductions.zig) - Global and axis-wise reductions (`sum`, `mean`, `min`, `max`, `argmin`, `argmax`, `cumsum`)
+- [`reductions`](examples/reductions.zig) - Global and axis-wise reductions (`sum`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `cumsum`)
+- [`bitwise_ops`](examples/bitwise_ops.zig) - Integer bitwise logic, shifts, and bit counts
+- [`complex_ops`](examples/complex_ops.zig) - Complex construction, conjugate, real/imaginary, magnitude, and phase
 
 **Sorting, Searching & Statistics:**
 - [`sorting`](examples/sorting.zig) - In-place and copy quicksort, and `argsort` permutation indexing
@@ -370,6 +387,8 @@ The `examples/` directory contains runnable examples demonstrating the full suit
 - [`svd`](examples/svd.zig) - General Singular Value Decomposition (U, S, Vt)
 - [`fft`](examples/fft.zig) - 1D Fast Fourier Transform and IFFT with complex spectra
 - [`sparse_matrix`](examples/sparse_matrix.zig) - Compressed Sparse Row (CSR) matrix creation, matvec multiplication, dense roundtripping, and Conjugate Gradient (`cg`) solver
+- [`polynomials`](examples/polynomials.zig) - Evaluation, derivatives, curve fitting, root finding, and coefficient arithmetic
+
 **Parallel CPU Execution:**
 - [`parallel_basic`](examples/parallel_basic.zig) - Automatic multithreaded execution across CPU cores
 - [`parallel_config`](examples/parallel_config.zig) - Explicit worker and chunk size configuration
@@ -381,6 +400,7 @@ The `examples/` directory contains runnable examples demonstrating the full suit
 
 **Serialization & I/O:**
 - [`serialization`](examples/serialization.zig) - Portable NZIG v1.0 binary array serialization, memory streams, and file roundtripping
+- [`text_io`](examples/text_io.zig) - Delimited CSV text save/load round-tripping
 
 To run any individual example:
 ```bash
@@ -402,7 +422,7 @@ zig build run-all-examples
 ## Validation Matrix
 
 ```bash
-# Run complete test suite (72 unit tests)
+# Run complete test suite (v0.0.3 unit tests)
 zig build test
 
 # Run tests, benchmarks, and all runnable examples sequentially

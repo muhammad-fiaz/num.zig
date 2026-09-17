@@ -1,31 +1,31 @@
 # Polynomial Calculus (`num.poly`)
 
-`num.zig` provides a polynomial evaluation and calculus module representing polynomials as 1D coefficient arrays ordered by ascending powers:
-$$P(x) = c_0 + c_1 x + c_2 x^2 + \dots + c_n x^n$$
+`num.zig` represents polynomials as 1D coefficient arrays ordered highest-degree first:
+`[c_n, ..., c_0]` for `P(x) = c_n x^n + ... + c_0`.
 
 ---
 
-## 1. Polynomial Evaluation (`polyval`)
+## 1. Polynomial Evaluation (`val`)
 
-Evaluates a polynomial at one or more scalar/array points using Horner's method:
+Evaluates a polynomial at array points using Horner's method. Output matches `x` shape:
 
 ```zig
-// Represents P(x) = 1 + 2x + 3x^2
+// Represents P(x) = 2x^2 - 3x + 5.
 var coeffs = try num.fromSlice(allocator, f64, .{
-    .data = &[_]f64{ 1.0, 2.0, 3.0 },
+    .data = &[_]f64{ 2.0, -3.0, 5.0 },
     .shape = &.{3},
 });
 defer coeffs.deinit();
 
-var x_points = try num.fromSlice(allocator, f64, .{
-    .data = &[_]f64{ 0.0, 1.0, 2.0 },
-    .shape = &.{3},
+var x = try num.fromSlice(allocator, f64, .{
+    .data = &[_]f64{2.0},
+    .shape = &. {},
 });
-defer x_points.deinit();
+defer x.deinit();
 
-// At x=0: 1, at x=1: 6, at x=2: 17
-var y_vals = try num.poly.val(allocator, f64, &coeffs, &x_points);
-defer y_vals.deinit();
+// p(2.0) = 7.0
+var y = try num.poly.val(coeffs, x);
+defer y.deinit();
 ```
 
 ---
@@ -33,37 +33,53 @@ defer y_vals.deinit();
 ## 2. Differentiation & Integration
 
 ### `der` (Derivative)
-Computes the derivative of polynomial coefficients:
-$$P'(x) = c_1 + 2 c_2 x + \dots + n c_n x^{n-1}$$
 
 ```zig
-var d1 = try num.poly.der(allocator, f64, &coeffs, 1);
-defer d1.deinit(); // [2.0, 6.0] -> 2 + 6x
+// p(x) = 3x^2 + 4x + 5 -> p'(x) = 6x + 4
+var d1 = try num.poly.der(coeffs, 1);
+defer d1.deinit();
 ```
 
 ### `integ` (Indefinite Integral)
-Computes the anti-derivative with a specified integration constant $k$:
+
 ```zig
-var integral = try num.poly.integ(allocator, f64, &coeffs, 1, 0.0);
-defer integral.deinit(); // [0.0, 1.0, 1.0, 1.0] -> x + x^2 + x^3
+var integral = try num.poly.integ(coeffs, 0.0);
+defer integral.deinit();
 ```
 
 ---
 
 ## 3. Polynomial Arithmetic
 
-- **`add`**: Sums two polynomials.
-- **`sub`**: Subtracts two polynomials.
-- **`mul`**: Polynomial multiplication (discrete convolution).
-- **`div`**: Polynomial long division returning quotient and remainder.
+```zig
+var s = try num.poly.add(pa, pb);
+defer s.deinit();
+var d = try num.poly.sub(pa, pb);
+defer d.deinit();
+var m = try num.poly.mul(pa, pb);
+defer m.deinit();
+```
 
 ---
 
-## 4. Least-Squares Curve Fitting (`polyfit`)
+## 4. Root Finding (`roots`)
 
-Fits a polynomial of specified degree $m$ to $(x, y)$ coordinates using Vandermonde matrix linear regression:
+Returns complex roots (`c128`). Linear/quadratic cases are analytic; higher
+degrees use Durand-Kerner iteration:
 
 ```zig
-var p_fit = try num.poly.fit(allocator, f64, &x_points, &y_vals, 2);
+// x^2 - 5x + 6 = (x-2)(x-3)
+var rts = try num.poly.roots(coeffs);
+defer rts.deinit();
+```
+
+---
+
+## 5. Least-Squares Curve Fitting (`fit`)
+
+Fits a polynomial of degree `deg` to 1D `(x, y)` points via QR least-squares:
+
+```zig
+var p_fit = try num.poly.fit(x_points, y_vals, 1);
 defer p_fit.deinit();
 ```

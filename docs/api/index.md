@@ -11,9 +11,9 @@ Welcome to the `num.zig` API reference. `num.zig` provides a comprehensive, type
 - [**DType & Type Promotion**](/api/dtype): DType enum, type inspection, promotion rules.
 
 ### Math & Operations
-- [**Elementwise Math**](/api/elementwise): Arithmetic, trigonometry, logarithms, exponentials, and special functions.
+- [**Elementwise Math**](/api/elementwise): Arithmetic, `positive`, trigonometry, logarithms, exponentials, special functions, integer bitwise ops, and complex helpers.
 - [**Comparisons & Logic**](/api/compare): Elementwise comparisons, floating-point predicates (`isnan`, `isinf`), and masking.
-- [**Reductions & Accumulations**](/api/reduce): `sum`, `prod`, `mean`, `min`, `max`, `argmin`, `argmax`, `cumsum`, `diff`.
+- [**Reductions & Accumulations**](/api/reduce): `sum`, `prod`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `cumsum`, `diff`.
 - [**Shape Manipulation**](/api/manip): Reshaping, transpose, axis swapping, concatenation, stacking, padding, rolling.
 
 ### Scientific Computing
@@ -24,5 +24,5 @@ Welcome to the `num.zig` API reference. `num.zig` provides a comprehensive, type
 - [**Random Number Generation**](/api/random): Seeded PRNG, uniform, normal, discrete integer, and shuffle generators.
 - [**Statistics**](/api/stats): Variances, standard deviations, quantiles, covariance, correlation, histograms.
 - [**Sorting & Sets**](/api/sort): In-place sort, argsort, binary search, unique sets, intersections.
-- [**Polynomials**](/api/poly): Polynomial evaluation, derivatives, anti-derivatives, curve fitting.
+- [**Polynomials**](/api/poly): Polynomial evaluation, derivatives, anti-derivatives, roots, coefficient arithmetic, curve fitting.
 - [**Serialization & I/O**](/api/io): NZIG v1.0 binary files and CSV/delimited text import/export.

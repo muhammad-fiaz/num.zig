@@ -27,6 +27,7 @@ pub fn atan2(y: Array, x: Array, options: struct { dtype: ?DType = null }) !Arra
 
 ```zig
 pub fn negate(a: Array, options: struct { dtype: ?DType = null }) !Array;
+pub fn positive(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn abs(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn sign(a: Array, options: struct { dtype: ?DType = null }) !Array;
 pub fn sqrt(a: Array, options: struct { dtype: ?DType = null }) !Array;
@@ -106,8 +107,44 @@ To support common mathematical shorthand without sacrificing readability, `num.z
 | `subtract` | `sub` | Direct alias for subtraction |
 | `multiply` | `mul` | Direct alias for multiplication |
 | `divide` | `div` | Direct alias for division |
-| `remainder` | `rem` | Direct alias for remainder |
+| `remainder` | `rem`, `mod` | Direct aliases for remainder |
+| `pow` | `power` | Direct alias for power |
+| `abs` | `absolute` | Direct alias for absolute value |
+| `negate` | `negative` | Direct alias for negation |
 
 Aliases are implemented as thin compile-time re-exports (`pub const sub = subtract;`) with identical behavior, signature, and performance.
+
+---
+
+## Integer Bitwise Operations
+
+Integer dtypes only with broadcasting. Floating-point, boolean, and complex inputs return `DTypeError.UnsupportedDType`.
+
+```zig
+pub fn bitwiseAnd(a: Array, b: Array) !Array;
+pub fn bitwiseOr(a: Array, b: Array) !Array;
+pub fn bitwiseXor(a: Array, b: Array) !Array;
+pub fn bitwiseNot(a: Array) !Array;
+pub fn leftShift(a: Array, b: Array) !Array;
+pub fn rightShift(a: Array, b: Array) !Array;
+pub fn bitCount(a: Array) !Array;
+pub fn clz(a: Array) !Array;       // leading-zero count; alias: leadingZeros
+pub fn ctz(a: Array) !Array;       // trailing-zero count; alias: trailingZeros
+pub const popcount = bitCount;
+```
+
+---
+
+## Complex Helpers
+
+Complex dtypes (`c64`, `c128`) only. Comparisons and ordering on complex arrays are unsupported.
+
+```zig
+pub fn conj(a: Array) !Array;        // alias: conjugate; preserves dtype
+pub fn real(a: Array) !Array;        // c64 -> f32, c128 -> f64
+pub fn imag(a: Array) !Array;        // c64 -> f32, c128 -> f64
+pub fn magnitude(a: Array) !Array;   // |z|, c64 -> f32, c128 -> f64
+pub fn phase(a: Array) !Array;       // arg(z) in radians
+```
 
 

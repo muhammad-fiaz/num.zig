@@ -100,6 +100,7 @@ pub const ops = struct {
     pub const divide = @import("ops/elementwise.zig").divide;
     pub const pow = @import("ops/elementwise.zig").pow;
     pub const negate = @import("ops/elementwise.zig").negate;
+    pub const positive = @import("ops/elementwise.zig").positive;
     pub const abs = @import("ops/elementwise.zig").abs;
     pub const sqrt = @import("ops/elementwise.zig").sqrt;
     pub const exp = @import("ops/elementwise.zig").exp;
@@ -148,6 +149,10 @@ pub const ops = struct {
     pub const mul = multiply;
     pub const div = divide;
     pub const rem = remainder;
+    pub const mod = remainder;
+    pub const power = pow;
+    pub const absolute = abs;
+    pub const negative = negate;
 
     // Comparisons & Predicates
     pub const equal = @import("ops/compare.zig").equal;
@@ -165,12 +170,37 @@ pub const ops = struct {
     pub const isFinite = @import("ops/compare.zig").isFinite;
     pub const isClose = @import("ops/compare.zig").isClose;
     pub const allClose = @import("ops/compare.zig").allClose;
+
+    // Integer bitwise operations (integer dtypes only, broadcast)
+    pub const bitwiseAnd = @import("ops/bitwise.zig").bitwiseAnd;
+    pub const bitwiseOr = @import("ops/bitwise.zig").bitwiseOr;
+    pub const bitwiseXor = @import("ops/bitwise.zig").bitwiseXor;
+    pub const bitwiseNot = @import("ops/bitwise.zig").bitwiseNot;
+    pub const leftShift = @import("ops/bitwise.zig").leftShift;
+    pub const rightShift = @import("ops/bitwise.zig").rightShift;
+    pub const bitCount = @import("ops/bitwise.zig").bitCount;
+    pub const clz = @import("ops/bitwise.zig").clz;
+    pub const ctz = @import("ops/bitwise.zig").ctz;
+    pub const leadingZeros = @import("ops/bitwise.zig").leadingZeros;
+    pub const trailingZeros = @import("ops/bitwise.zig").trailingZeros;
+    pub const popcount = @import("ops/bitwise.zig").popcount;
+
+    // Complex helpers
+    pub const conj = @import("ops/complex.zig").conj;
+    pub const conjugate = @import("ops/complex.zig").conjugate;
+    pub const real = @import("ops/complex.zig").real;
+    pub const imag = @import("ops/complex.zig").imag;
+    pub const magnitude = @import("ops/complex.zig").magnitude;
+    pub const phase = @import("ops/complex.zig").phase;
 };
 
 pub const reduce = struct {
     pub const sum = @import("ops/reduce.zig").sum;
     pub const prod = @import("ops/reduce.zig").prod;
     pub const mean = @import("ops/reduce.zig").mean;
+    pub const median = @import("ops/reduce.zig").median;
+    pub const variance = @import("ops/reduce.zig").variance;
+    pub const stdDev = @import("ops/reduce.zig").stdDev;
     pub const min = @import("ops/reduce.zig").min;
     pub const max = @import("ops/reduce.zig").max;
     pub const argmin = @import("ops/reduce.zig").argmin;
@@ -225,8 +255,6 @@ pub const sparse = struct {
     pub const CscMatrix = @import("core/sparse.zig").CscMatrix;
     pub const cg = @import("linalg/sparse_solve.zig").cg;
     pub const gmres = @import("linalg/sparse_solve.zig").gmres;
-    pub const CgOptions = @import("linalg/sparse_solve.zig").CgOptions;
-    pub const GmresOptions = @import("linalg/sparse_solve.zig").GmresOptions;
     pub const SparseSolveResult = @import("linalg/sparse_solve.zig").SparseSolveResult;
 };
 
@@ -236,7 +264,6 @@ pub const parallel = struct {
 
 pub const random = struct {
     pub const Prng = @import("random/engine.zig").Prng;
-    pub const getDefaultPrng = @import("random/engine.zig").getDefaultPrng;
     pub const uniform = @import("random/distributions.zig").uniform;
     pub const rand = @import("random/distributions.zig").rand;
     pub const normal = @import("random/distributions.zig").normal;
@@ -306,6 +333,10 @@ pub const poly = struct {
     pub const fit = @import("poly/fit.zig").fit;
     pub const der = @import("poly/eval.zig").der;
     pub const integ = @import("poly/eval.zig").integ;
+    pub const roots = @import("poly/roots.zig").roots;
+    pub const add = @import("poly/roots.zig").add;
+    pub const sub = @import("poly/roots.zig").sub;
+    pub const mul = @import("poly/roots.zig").mul;
 };
 
 test {
@@ -318,6 +349,8 @@ test {
     _ = @import("core/array.zig");
     _ = @import("ops/broadcast.zig");
     _ = @import("ops/elementwise.zig");
+    _ = @import("ops/bitwise.zig");
+    _ = @import("ops/complex.zig");
     _ = @import("ops/compare.zig");
     _ = @import("ops/reduce.zig");
     _ = @import("manip/reshape.zig");
@@ -347,6 +380,7 @@ test {
     _ = @import("ops/parallel.zig");
     _ = @import("poly/eval.zig");
     _ = @import("poly/fit.zig");
+    _ = @import("poly/roots.zig");
 }
 
 test "end-to-end library integration" {

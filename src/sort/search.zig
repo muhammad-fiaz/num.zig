@@ -22,7 +22,7 @@ pub const SearchSide = enum {
     right,
 };
 
-pub const SearchSortedOptions = struct {
+const SearchSortedOptions = struct {
     side: SearchSide = .left,
 };
 
@@ -55,37 +55,26 @@ pub fn searchSorted(
     var flat_out = try ravel(out);
     defer flat_out.deinit();
 
+    const OrderCtx = struct {
+        fn orderFn(context: f64, item: f64) std.math.Order {
+            return std.math.order(context, item);
+        }
+    };
+
     for (0..m) |i| {
         const v = try flat_vals.getAsFloat(&.{i});
-        var low: usize = 0;
-        var high: usize = n;
+        const idx = if (options.side == .left)
+            std.sort.lowerBound(f64, sorted_buf, v, OrderCtx.orderFn)
+        else
+            std.sort.upperBound(f64, sorted_buf, v, OrderCtx.orderFn);
 
-        while (low < high) {
-            const mid = low + (high - low) / 2;
-            const item = sorted_buf[mid];
-
-            if (options.side == .left) {
-                if (item < v) {
-                    low = mid + 1;
-                } else {
-                    high = mid;
-                }
-            } else {
-                if (item <= v) {
-                    low = mid + 1;
-                } else {
-                    high = mid;
-                }
-            }
-        }
-
-        try flat_out.set(i64, &.{i}, @intCast(low));
+        try flat_out.set(i64, &.{i}, @intCast(idx));
     }
 
     return out;
 }
 
-pub const UniqueOptions = struct {
+const UniqueOptions = struct {
     returnIndex: bool = false,
     returnInverse: bool = false,
     returnCounts: bool = false,

@@ -104,14 +104,15 @@ pub const Array = struct {
     }
 
     /// Duplicates the array into a newly allocated, contiguous owned copy.
+    /// This is the canonical deep-copy operation (returns owned data).
     pub fn clone(self: Array) (ShapeError || std.mem.Allocator.Error)!Array {
-        var copy = try zeros(self.allocator, .{
+        var dup = try zeros(self.allocator, .{
             .shape = self.shapeSlice(),
             .dtype = self.dtype,
         });
 
         if (self.isContiguous()) {
-            @memcpy(copy.data_ptr[0..self.byteCount()], self.data_ptr[0..self.byteCount()]);
+            @memcpy(dup.data_ptr[0..self.byteCount()], self.data_ptr[0..self.byteCount()]);
         } else {
             const NdIterator = @import("iterator.zig").NdIterator;
             var it = NdIterator.init(self.shape(), self.strides());
@@ -120,13 +121,59 @@ pub const Array = struct {
 
             while (it.next()) |it_item| {
                 const src_ptr = self.data_ptr + @as(usize, @intCast(@as(isize, @intCast(0)) + it_item.offset)) * elem_sz;
-                const dst_ptr = copy.data_ptr + out_offset * elem_sz;
+                const dst_ptr = dup.data_ptr + out_offset * elem_sz;
                 @memcpy(dst_ptr[0..elem_sz], src_ptr[0..elem_sz]);
                 out_offset += 1;
             }
         }
 
-        return copy;
+        return dup;
+    }
+
+    /// Alias for `clone`: explicit deep copy returning new owned contiguous data.
+    pub const copy = clone;
+
+    /// Returns an owned C-contiguous copy. If already contiguous this is
+    /// equivalent to `clone`; otherwise strided data is linearized.
+    /// The caller owns the result and must call `deinit`.
+    pub fn asContiguous(self: Array) (ShapeError || std.mem.Allocator.Error)!Array {
+        return self.clone();
+    }
+
+    /// Casts to `target` dtype, returning a new owned contiguous array.
+    /// Uses the centralized `DType.castValue` conversion (no f64 bottleneck,
+    /// preserving integer precision). Complex sources convert via their real
+    /// component handling in `castValue`; complex targets receive converted
+    /// real and imaginary parts.
+    pub fn astype(self: Array, target: DType) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+        var out = try zeros(self.allocator, .{ .shape = self.shapeSlice(), .dtype = target });
+        errdefer out.deinit();
+        const NdIterator = @import("iterator.zig").NdIterator;
+        var it = NdIterator.init(self.shape(), self.strides());
+        var out_it = NdIterator.init(out.shape(), out.strides());
+        while (it.next()) |entry| {
+            const o = out_it.next().?;
+            inline for (std.meta.fields(DType)) |tfield| {
+                const ttag: DType = @enumFromInt(tfield.value);
+                if (target == ttag) {
+                    const T = ttag.toType();
+                    const optr: [*]T = @ptrCast(@alignCast(out.data_ptr));
+                    const dst_idx: usize = @intCast(o.offset);
+                    inline for (std.meta.fields(DType)) |sfield| {
+                        const stag: DType = @enumFromInt(sfield.value);
+                        if (self.dtype == stag) {
+                            const S = stag.toType();
+                            const sptr: [*]const S = @ptrCast(@alignCast(self.data_ptr));
+                            const sval = sptr[@as(usize, @intCast(entry.offset))];
+                            optr[dst_idx] = DType.castValue(T, S, sval);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return out;
     }
 
     /// Returns a typed slice over the array data, failing if the array is not contiguous.
@@ -457,32 +504,7 @@ pub const Array = struct {
             const tag: DType = @enumFromInt(field.value);
             if (self.dtype == tag) {
                 const DstT = tag.toType();
-                const cast_val: DstT = switch (@typeInfo(DstT)) {
-                    .int => switch (@typeInfo(T)) {
-                        .int, .comptime_int => @as(DstT, @intCast(val)),
-                        .float, .comptime_float => @as(DstT, @intFromFloat(val)),
-                        .bool => @as(DstT, if (val) 1 else 0),
-                        else => 0,
-                    },
-                    .float => switch (@typeInfo(T)) {
-                        .int, .comptime_int => @as(DstT, @floatFromInt(val)),
-                        .float, .comptime_float => @as(DstT, @floatCast(val)),
-                        .bool => @as(DstT, if (val) 1.0 else 0.0),
-                        else => 0.0,
-                    },
-                    .bool => switch (@typeInfo(T)) {
-                        .bool => val,
-                        .int, .comptime_int => val != 0,
-                        .float, .comptime_float => val != 0.0,
-                        else => false,
-                    },
-                    .@"struct" => switch (@typeInfo(T)) {
-                        .float, .comptime_float => .{ .re = @floatCast(val), .im = 0.0 },
-                        .int, .comptime_int => .{ .re = @floatFromInt(val), .im = 0.0 },
-                        else => .{ .re = 0.0, .im = 0.0 },
-                    },
-                    else => 0,
-                };
+                const cast_val: DstT = DType.castValue(DstT, T, val);
 
                 if (self.flags.isCContiguous) {
                     const ptr: [*]DstT = @ptrCast(@alignCast(self.data_ptr));
@@ -618,28 +640,7 @@ pub fn full(
         if (arr.dtype == tag) {
             const T = tag.toType();
             const slice = arr.asSlice(T) catch unreachable;
-            const cast_val: T = switch (@typeInfo(T)) {
-                .int => switch (@typeInfo(ValType)) {
-                    .int, .comptime_int => @as(T, @intCast(options.value)),
-                    .float, .comptime_float => @as(T, @intFromFloat(options.value)),
-                    .bool => @as(T, if (options.value) 1 else 0),
-                    else => @as(T, 0),
-                },
-                .float => switch (@typeInfo(ValType)) {
-                    .int, .comptime_int => @as(T, @floatFromInt(options.value)),
-                    .float, .comptime_float => @as(T, @floatCast(options.value)),
-                    .bool => @as(T, if (options.value) 1.0 else 0.0),
-                    else => @as(T, 0.0),
-                },
-                .bool => if (options.value != 0) true else false,
-                .@"struct" => switch (@typeInfo(ValType)) {
-                    .@"struct" => .{ .re = @floatCast(options.value.re), .im = @floatCast(options.value.im) },
-                    .int, .comptime_int => .{ .re = @floatFromInt(options.value), .im = 0.0 },
-                    .float, .comptime_float => .{ .re = @floatCast(options.value), .im = 0.0 },
-                    else => .{ .re = 0.0, .im = 0.0 },
-                },
-                else => unreachable,
-            };
+            const cast_val: T = DType.castValue(T, ValType, options.value);
             @memset(slice, cast_val);
             return arr;
         }

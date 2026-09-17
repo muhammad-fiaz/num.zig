@@ -36,3 +36,24 @@ pub fn integ(coeffs: Array, k: f64) !Array;
 pub fn fit(x: Array, y: Array, deg: usize) !Array;
 ```
 
+---
+
+## Roots
+
+```zig
+/// Find polynomial roots. Returns a 1D c128 array of length deg.
+/// Linear/quadratic cases are analytic; higher degrees use Durand-Kerner iteration.
+pub fn roots(coeffs: Array) !Array;
+```
+
+---
+
+## Coefficient Arithmetic
+
+```zig
+/// Add, subtract, or multiply polynomials (highest-degree-first, trimmed).
+pub fn add(a: Array, b: Array) !Array;
+pub fn sub(a: Array, b: Array) !Array;
+pub fn mul(a: Array, b: Array) !Array;
+```
+

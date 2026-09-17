@@ -43,4 +43,24 @@ pub fn main() !void {
         try fit.get(f64, &.{0}),
         try fit.get(f64, &.{1}),
     });
+
+    // 4. Polynomial roots: x^2 - 5x + 6 = (x-2)(x-3)
+    const q_data = [_]f64{ 1.0, -5.0, 6.0 };
+    var q = try num.fromSlice(allocator, f64, .{ .data = &q_data, .shape = &.{3} });
+    defer q.deinit();
+    var rts = try num.poly.roots(q);
+    defer rts.deinit();
+    const rslice = try rts.asSlice(std.math.Complex(f64));
+    std.debug.print("Poly roots of x^2-5x+6: {d:.4}, {d:.4}\n", .{ rslice[0].re, rslice[1].re });
+
+    // 5. Coefficient arithmetic: (x+2)(x+3) = x^2+5x+6
+    const a_data = [_]f64{ 1.0, 2.0 };
+    const b_data = [_]f64{ 1.0, 3.0 };
+    var pa = try num.fromSlice(allocator, f64, .{ .data = &a_data, .shape = &.{2} });
+    defer pa.deinit();
+    var pb = try num.fromSlice(allocator, f64, .{ .data = &b_data, .shape = &.{2} });
+    defer pb.deinit();
+    var prod = try num.poly.mul(pa, pb);
+    defer prod.deinit();
+    std.debug.print("Poly (x+2)(x+3) coeffs = {any}\n", .{try prod.asSlice(f64)});
 }

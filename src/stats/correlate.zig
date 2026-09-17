@@ -22,7 +22,7 @@ const sub_fn = @import("../ops/elementwise.zig").subtract;
 const ravel = @import("../manip/reshape.zig").ravel;
 const transpose = @import("../manip/transpose.zig").transpose;
 
-pub const CovarianceOptions = struct {
+const CovarianceOptions = struct {
     rowvar: bool = true,
     bias: bool = false,
     ddof: ?usize = null,
@@ -150,7 +150,7 @@ pub const HistogramResult = struct {
     }
 };
 
-pub const HistogramOptions = struct {
+const HistogramOptions = struct {
     bins: usize = 10,
     range: ?[2]f64 = null,
     density: bool = false,

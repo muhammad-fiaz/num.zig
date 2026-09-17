@@ -24,7 +24,7 @@ const ravel = @import("../manip/reshape.zig").ravel;
 
 pub const mean = mean_fn;
 
-pub const VarianceOptions = struct {
+const VarianceOptions = struct {
     axis: ?isize = null,
     ddof: usize = 0,
     keepDims: bool = false,
@@ -78,7 +78,7 @@ pub fn variance(
     return res;
 }
 
-pub const StdDevOptions = struct {
+const StdDevOptions = struct {
     axis: ?isize = null,
     ddof: usize = 0,
     keepDims: bool = false,
@@ -101,7 +101,7 @@ pub fn stdDev(
     return sqrt_fn(var_res, .{ .dtype = options.dtype });
 }
 
-pub const MedianOptions = struct {
+const MedianOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
 };
@@ -117,7 +117,7 @@ pub fn median(
     });
 }
 
-pub const QuantileOptions = struct {
+const QuantileOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
 };
@@ -228,7 +228,7 @@ pub fn quantileWithOptions(
     return out;
 }
 
-pub const PercentileOptions = struct {
+const PercentileOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
 };

@@ -17,7 +17,7 @@ const NdIterator = @import("../core/iterator.zig").NdIterator;
 
 const VEC_SIZE = 8;
 
-pub const ReduceOp = enum {
+const ReduceOp = enum {
     sum,
     prod,
     min,
@@ -26,59 +26,103 @@ pub const ReduceOp = enum {
     any,
 };
 
-pub const ReduceOptions = struct {
+const ReduceOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
     dtype: ?DType = null,
 };
 
+const ArgOptions = struct {
+    axis: ?isize = null,
+    keepDims: bool = false,
+};
+
+const CumOptions = struct {
+    axis: ?isize = null,
+    dtype: ?DType = null,
+};
+
+const CumMinMaxOptions = struct {
+    axis: ?isize = null,
+};
+
+const DiffOptions = struct {
+    n: usize = 1,
+    axis: ?isize = null,
+};
+
+inline fn optAxis(options: anytype) ?isize {
+    const T = @TypeOf(options);
+    if (@typeInfo(T) != .@"struct") return null;
+    if (!@hasField(T, "axis")) return null;
+    const ax = options.axis;
+    if (ax == null) return null;
+    return @intCast(ax.?);
+}
+
+inline fn optKeepDims(options: anytype) bool {
+    const T = @TypeOf(options);
+    if (@typeInfo(T) != .@"struct") return false;
+    if (!@hasField(T, "keepDims")) return false;
+    return options.keepDims;
+}
+
+inline fn optDtype(options: anytype) ?DType {
+    const T = @TypeOf(options);
+    if (@typeInfo(T) != .@"struct") return null;
+    if (!@hasField(T, "dtype")) return null;
+    return options.dtype;
+}
+
 /// Computes the sum of array elements over a given axis or globally.
+/// Optional inline config: `.{ .axis = 0, .keepDims = false, .dtype = .f64 }`; may be omitted.
 pub fn sum(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    const out_dtype = options.dtype orelse switch (arr.dtype) {
+    const out_dtype = optDtype(options) orelse switch (arr.dtype) {
         .bool, .i8, .i16, .i32 => .i64,
         .u8, .u16, .u32 => .u64,
         else => arr.dtype,
     };
-    return executeReduction(arr, .sum, options.axis, options.keepDims, out_dtype);
+    return executeReduction(arr, .sum, optAxis(options), optKeepDims(options), out_dtype);
 }
 
 /// Computes the product of array elements over a given axis or globally.
+/// Optional inline config may be omitted.
 pub fn prod(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    const out_dtype = options.dtype orelse switch (arr.dtype) {
+    const out_dtype = optDtype(options) orelse switch (arr.dtype) {
         .bool, .i8, .i16, .i32 => .i64,
         .u8, .u16, .u32 => .u64,
         else => arr.dtype,
     };
-    return executeReduction(arr, .prod, options.axis, options.keepDims, out_dtype);
+    return executeReduction(arr, .prod, optAxis(options), optKeepDims(options), out_dtype);
 }
 
 /// Finds the minimum value over a given axis or globally.
 pub fn min(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
     if (arr.elementCount() == 0) return ShapeError.EmptyArray;
-    const out_dtype = options.dtype orelse arr.dtype;
-    return executeReduction(arr, .min, options.axis, options.keepDims, out_dtype);
+    const out_dtype = optDtype(options) orelse arr.dtype;
+    return executeReduction(arr, .min, optAxis(options), optKeepDims(options), out_dtype);
 }
 
 /// Finds the maximum value over a given axis or globally.
 pub fn max(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
     if (arr.elementCount() == 0) return ShapeError.EmptyArray;
-    const out_dtype = options.dtype orelse arr.dtype;
-    return executeReduction(arr, .max, options.axis, options.keepDims, out_dtype);
+    const out_dtype = optDtype(options) orelse arr.dtype;
+    return executeReduction(arr, .max, optAxis(options), optKeepDims(options), out_dtype);
 }
 
 /// Computes the arithmetic mean over a given axis or globally.
 pub fn mean(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
     if (arr.elementCount() == 0) return ShapeError.EmptyArray;
-    const float_dtype: DType = options.dtype orelse (if (arr.dtype == .f32) DType.f32 else DType.f64);
+    const float_dtype: DType = optDtype(options) orelse (if (arr.dtype == .f32) DType.f32 else DType.f64);
 
     var s = try sum(arr, .{
-        .axis = options.axis,
-        .keepDims = options.keepDims,
+        .axis = optAxis(options),
+        .keepDims = optKeepDims(options),
         .dtype = float_dtype,
     });
     errdefer s.deinit();
 
-    const count_dim: usize = if (options.axis) |ax| blk: {
+    const count_dim: usize = if (optAxis(options)) |ax| blk: {
         const norm_ax = try arr.shape().normalizeAxis(ax);
         break :blk arr.shape_dims[norm_ax];
     } else arr.elementCount();
@@ -109,58 +153,92 @@ pub fn mean(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std
     return s;
 }
 
+/// Computes the median over a given axis or globally.
+/// Returns f32 for f32 inputs, otherwise f64. Supports keepDims and negative axes.
+pub fn median(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
+    if (arr.dtype.isComplex() or arr.dtype == .bool) return DTypeError.UnsupportedDType;
+    const float_dtype: DType = optDtype(options) orelse (if (arr.dtype == .f32) DType.f32 else DType.f64);
+    return executeStatReduction(arr, .median, optAxis(options), optKeepDims(options), float_dtype);
+}
+
+/// Computes the population variance over a given axis or globally.
+/// Returns f32 for f32 inputs, otherwise f64.
+pub fn variance(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
+    if (arr.dtype.isComplex() or arr.dtype == .bool) return DTypeError.UnsupportedDType;
+    const float_dtype: DType = optDtype(options) orelse (if (arr.dtype == .f32) DType.f32 else DType.f64);
+    return executeStatReduction(arr, .variance, optAxis(options), optKeepDims(options), float_dtype);
+}
+
+/// Computes the population standard deviation over a given axis or globally.
+pub fn stdDev(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    var v = try variance(arr, .{ .axis = optAxis(options), .keepDims = optKeepDims(options), .dtype = optDtype(options) });
+    errdefer v.deinit();
+    const n = v.elementCount();
+    if (v.dtype == .f32) {
+        const s = try v.asSlice(f32);
+        for (s) |*x| x.* = @sqrt(x.*);
+    } else {
+        const s = try v.asSlice(f64);
+        for (s) |*x| x.* = @sqrt(x.*);
+    }
+    _ = n;
+    return v;
+}
+
 /// Tests whether all elements evaluate to true over a given axis or globally.
-pub fn all(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeReduction(arr, .all, options.axis, options.keepDims, .bool);
+pub fn all(arr: Array, options: ArgOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeReduction(arr, .all, optAxis(options), optKeepDims(options), .bool);
 }
 
 /// Tests whether any element evaluates to true over a given axis or globally.
-pub fn any(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeReduction(arr, .any, options.axis, options.keepDims, .bool);
+pub fn any(arr: Array, options: ArgOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeReduction(arr, .any, optAxis(options), optKeepDims(options), .bool);
 }
 
 /// Returns the indices of the minimum values along an axis.
-pub fn argmin(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeArgReduction(arr, false, options.axis, options.keepDims);
+pub fn argmin(arr: Array, options: ArgOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeArgReduction(arr, false, optAxis(options), optKeepDims(options));
 }
 
 /// Returns the indices of the maximum values along an axis.
-pub fn argmax(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeArgReduction(arr, true, options.axis, options.keepDims);
+pub fn argmax(arr: Array, options: ArgOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeArgReduction(arr, true, optAxis(options), optKeepDims(options));
 }
 
 /// Cumulative sum of elements along a given axis.
-pub fn cumsum(arr: Array, options: struct { axis: ?isize = null, dtype: ?DType = null }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    const out_dtype = options.dtype orelse switch (arr.dtype) {
+pub fn cumsum(arr: Array, options: CumOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const out_dtype = optDtype(options) orelse switch (arr.dtype) {
         .bool, .i8, .i16, .i32 => .i64,
         .u8, .u16, .u32 => .u64,
         else => arr.dtype,
     };
-    return executeCumulative(arr, .sum, options.axis, out_dtype);
+    return executeCumulative(arr, .sum, optAxis(options), out_dtype);
 }
 
 /// Cumulative product of elements along a given axis.
-pub fn cumprod(arr: Array, options: struct { axis: ?isize = null, dtype: ?DType = null }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    const out_dtype = options.dtype orelse switch (arr.dtype) {
+pub fn cumprod(arr: Array, options: CumOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const out_dtype = optDtype(options) orelse switch (arr.dtype) {
         .bool, .i8, .i16, .i32 => .i64,
         .u8, .u16, .u32 => .u64,
         else => arr.dtype,
     };
-    return executeCumulative(arr, .prod, options.axis, out_dtype);
+    return executeCumulative(arr, .prod, optAxis(options), out_dtype);
 }
 
 /// Cumulative minimum of elements along a given axis.
-pub fn cummin(arr: Array, options: struct { axis: ?isize = null }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeCumulative(arr, .min, options.axis, arr.dtype);
+pub fn cummin(arr: Array, options: CumMinMaxOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeCumulative(arr, .min, optAxis(options), arr.dtype);
 }
 
 /// Cumulative maximum of elements along a given axis.
-pub fn cummax(arr: Array, options: struct { axis: ?isize = null }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    return executeCumulative(arr, .max, options.axis, arr.dtype);
+pub fn cummax(arr: Array, options: CumMinMaxOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    return executeCumulative(arr, .max, optAxis(options), arr.dtype);
 }
 
 /// Counts the number of non-zero elements in the array.
-pub fn countNonzero(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+pub fn countNonzero(arr: Array, options: ArgOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
     var fnz_bool = try empty(arr.allocator, .{ .shape = arr.shapeSlice(), .dtype = .i64 });
     defer fnz_bool.deinit();
 
@@ -172,20 +250,23 @@ pub fn countNonzero(arr: Array, options: struct { axis: ?isize = null, keepDims:
         fnz_bool.set(i64, out_item.indices[0..fnz_bool.ndim], if (v != 0.0) 1 else 0) catch unreachable;
     }
 
-    return sum(fnz_bool, .{ .axis = options.axis, .keepDims = options.keepDims, .dtype = .i64 });
+    return sum(fnz_bool, .{ .axis = optAxis(options), .keepDims = optKeepDims(options), .dtype = .i64 });
 }
 
 /// Calculate the n-th discrete difference along the given axis.
-pub fn diff(arr: Array, options: struct { n: usize = 1, axis: ?isize = null }) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    if (options.n == 0) return arr.clone();
+/// Optional inline config: `.{ .n = 1, .axis = null }`; may be omitted.
+pub fn diff(arr: Array, options: DiffOptions) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const n: usize = options.n;
+    const axis_opt: ?isize = options.axis;
+    if (n == 0) return arr.clone();
     const s = arr.shape();
-    const ax = if (options.axis) |a| try s.normalizeAxis(a) else s.ndim - 1;
-    if (s.dims[ax] <= options.n) return ShapeError.InvalidDimension;
+    const ax = if (axis_opt) |a| try s.normalizeAxis(a) else s.ndim - 1;
+    if (s.dims[ax] <= n) return ShapeError.InvalidDimension;
 
     var cur = try arr.clone();
     errdefer cur.deinit();
 
-    for (0..options.n) |_| {
+    for (0..n) |_| {
         const cur_s = cur.shape();
         const dim_len = cur_s.dims[ax];
 
@@ -365,13 +446,129 @@ fn reduceAxis(comptime T: type, comptime op: ReduceOp, arr: Array, axis: usize, 
     }
 }
 
+const StatOp = enum { median, variance };
+
+fn executeStatReduction(
+    arr: Array,
+    comptime op: StatOp,
+    axis_opt: ?isize,
+    keepDims: bool,
+    out_dtype: DType,
+) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const s = arr.shape();
+    // Determine output shape matching executeReduction conventions.
+    var out_shape: Shape = undefined;
+    var axis_usize: ?usize = null;
+    if (axis_opt) |ax| {
+        axis_usize = try s.normalizeAxis(ax);
+        out_shape = Shape{ .ndim = if (keepDims) s.ndim else if (s.ndim == 0) 0 else s.ndim - 1 };
+        var out_idx: usize = 0;
+        for (0..s.ndim) |i| {
+            if (i == axis_usize.?) {
+                if (keepDims) {
+                    out_shape.dims[out_idx] = 1;
+                    out_idx += 1;
+                }
+            } else {
+                out_shape.dims[out_idx] = s.dims[i];
+                out_idx += 1;
+            }
+        }
+    } else {
+        out_shape = if (keepDims) blk: {
+            const kd_dims = [_]usize{1} ** MAX_RANK;
+            break :blk Shape{ .dims = kd_dims, .ndim = s.ndim };
+        } else Shape.scalar();
+    }
+
+    var out = try empty(arr.allocator, .{ .shape = out_shape.slice(), .dtype = out_dtype });
+    errdefer out.deinit();
+
+    if (axis_usize == null) {
+        const stat = try statGlobal(arr, op);
+        if (out_dtype == .f32) {
+            (try out.asSlice(f32))[0] = @floatCast(stat);
+        } else {
+            (try out.asSlice(f64))[0] = stat;
+        }
+        return out;
+    }
+
+    const axis = axis_usize.?;
+    const axis_len = s.dims[axis];
+    if (axis_len == 0) return ShapeError.EmptyArray;
+    const buf = try arr.allocator.alloc(f64, axis_len);
+    defer arr.allocator.free(buf);
+
+    var out_it = NdIterator.init(out.shape(), out.strides());
+    while (out_it.next()) |out_item| {
+        var in_indices: [MAX_RANK]usize = undefined;
+        var in_dim: usize = 0;
+        for (0..s.ndim) |dim| {
+            if (dim == axis) {
+                in_indices[dim] = 0;
+            } else {
+                in_indices[dim] = if (keepDims) out_item.indices[dim] else out_item.indices[in_dim];
+                in_dim += 1;
+            }
+        }
+        for (0..axis_len) |k| {
+            in_indices[axis] = k;
+            buf[k] = arr.getAsFloat(in_indices[0..s.ndim]) catch 0.0;
+        }
+        const stat = statOfSlice(buf, op);
+        if (out_dtype == .f32) {
+            const ptr: [*]f32 = @ptrCast(@alignCast(out.data_ptr));
+            ptr[@as(usize, @intCast(out_item.offset))] = @floatCast(stat);
+        } else {
+            const ptr: [*]f64 = @ptrCast(@alignCast(out.data_ptr));
+            ptr[@as(usize, @intCast(out_item.offset))] = stat;
+        }
+    }
+    return out;
+}
+
+fn statGlobal(arr: Array, comptime op: StatOp) (ShapeError || std.mem.Allocator.Error)!f64 {
+    const n = arr.elementCount();
+    const buf = try arr.allocator.alloc(f64, n);
+    defer arr.allocator.free(buf);
+    var it = NdIterator.init(arr.shape(), arr.strides());
+    var i: usize = 0;
+    while (it.next()) |item| {
+        buf[i] = arr.getAsFloat(item.indices[0..arr.ndim]) catch 0.0;
+        i += 1;
+    }
+    return statOfSlice(buf, op);
+}
+
+fn statOfSlice(values: []f64, comptime op: StatOp) f64 {
+    switch (op) {
+        .median => {
+            std.mem.sort(f64, values, {}, std.sort.asc(f64));
+            const n = values.len;
+            if (n % 2 == 1) return values[n / 2];
+            return (values[n / 2 - 1] + values[n / 2]) / 2.0;
+        },
+        .variance => {
+            var mean_val: f64 = 0;
+            for (values) |v| mean_val += v;
+            mean_val /= @as(f64, @floatFromInt(values.len));
+            var acc: f64 = 0;
+            for (values) |v| {
+                const d = v - mean_val;
+                acc += d * d;
+            }
+            return acc / @as(f64, @floatFromInt(values.len));
+        },
+    }
+}
+
 fn executeArgReduction(
     arr: Array,
     is_max: bool,
     axis_opt: ?isize,
     keepDims: bool,
-) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
+) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
     const s = arr.shape();
 
     if (axis_opt == null) {
@@ -603,38 +800,7 @@ fn readAndCast(comptime TargetT: type, arr: Array, offset: isize) TargetT {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));
             const elem = if (offset >= 0) ptr[@as(usize, @intCast(offset))] else ptr[0];
-            if (TargetT == SrcT) return elem;
-            return switch (@typeInfo(TargetT)) {
-                .float => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @floatFromInt(elem),
-                    .float, .comptime_float => @floatCast(elem),
-                    .bool => if (elem) 1.0 else 0.0,
-                    .@"struct" => @floatCast(elem.re),
-                    else => 0.0,
-                },
-                .int => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @intCast(elem),
-                    .float, .comptime_float => @intFromFloat(elem),
-                    .bool => if (elem) 1 else 0,
-                    .@"struct" => @intFromFloat(elem.re),
-                    else => 0,
-                },
-                .bool => switch (@typeInfo(SrcT)) {
-                    .bool => elem,
-                    .int, .comptime_int => elem != 0,
-                    .float, .comptime_float => elem != 0.0,
-                    .@"struct" => elem.re != 0.0 or elem.im != 0.0,
-                    else => false,
-                },
-                .@"struct" => switch (@typeInfo(SrcT)) {
-                    .@"struct" => .{ .re = @floatCast(elem.re), .im = @floatCast(elem.im) },
-                    .float, .comptime_float => .{ .re = @floatCast(elem), .im = 0.0 },
-                    .int, .comptime_int => .{ .re = @floatFromInt(elem), .im = 0.0 },
-                    .bool => .{ .re = if (elem) 1.0 else 0.0, .im = 0.0 },
-                    else => .{ .re = 0.0, .im = 0.0 },
-                },
-                else => 0,
-            };
+            return DType.castValue(TargetT, SrcT, elem);
         }
     }
     return if (TargetT == bool) false else if (@typeInfo(TargetT) == .@"struct") TargetT.init(0.0, 0.0) else 0;
@@ -698,4 +864,44 @@ test "global and axis reductions" {
     var d_res = try diff(d_arr, .{});
     defer d_res.deinit();
     try std.testing.expectEqualSlices(f64, &.{ 1.0, 2.0, 3.0, 4.0 }, try d_res.asSlice(f64));
+}
+
+test "median variance stdDev global and axis" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const vals = [_]f64{ 1.0, 2.0, 3.0, 4.0 };
+    var a = try fromSlice(allocator, f64, .{ .data = &vals, .shape = &.{4} });
+    defer a.deinit();
+    var med = try median(a, .{});
+    defer med.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 2.5), try med.get(f64, &.{}), 1e-12);
+    var vari = try variance(a, .{});
+    defer vari.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 1.25), try vari.get(f64, &.{}), 1e-12);
+    var sd = try stdDev(a, .{});
+    defer sd.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 1.1180339887), try sd.get(f64, &.{}), 1e-9);
+
+    // f32 preserves dtype
+    const f32vals = [_]f32{ 1.0, 3.0 };
+    var b = try fromSlice(allocator, f32, .{ .data = &f32vals, .shape = &.{2} });
+    defer b.deinit();
+    var med32 = try median(b, .{});
+    defer med32.deinit();
+    try std.testing.expect(med32.dtype == .f32);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), try med32.get(f32, &.{}), 1e-5);
+
+    // axis reduction with keepDims and negative axis
+    const m2 = [_]f64{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
+    var c = try fromSlice(allocator, f64, .{ .data = &m2, .shape = &.{ 2, 3 } });
+    defer c.deinit();
+    var med_ax = try median(c, .{ .axis = 1 });
+    defer med_ax.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 2.0, 5.0 }, try med_ax.asSlice(f64));
+    var med_neg = try median(c, .{ .axis = -1 });
+    defer med_neg.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 2.0, 5.0 }, try med_neg.asSlice(f64));
+    var var_keep = try variance(c, .{ .axis = 0, .keepDims = true });
+    defer var_keep.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 1, 3 }, var_keep.shapeSlice());
 }
