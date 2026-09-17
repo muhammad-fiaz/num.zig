@@ -1,57 +1,61 @@
-# FFT API Reference
+# Fast Fourier Transform API
 
-The `fft` module provides Fast Fourier Transform functions.
+Module: `@import("num").fft`
 
-## 1D FFT
+---
 
-### fft
+## 1D Fourier Transforms
 
-Compute the one-dimensional discrete Fourier Transform.
+Both `fft` and `ifft` operate along a specified axis and support complex and real inputs.
+Real inputs are automatically promoted to the appropriate complex dtype (`c64` for `f32`, `c128` for `f64`).
 
 ```zig
-pub fn fft(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
+pub const FftOptions = struct {
+    axis: isize = -1,
+    norm: enum { backward, ortho, forward } = .backward,
+};
+
+pub fn fft(a: Array, options: FftOptions) !Array;
+pub fn ifft(a: Array, options: FftOptions) !Array;
 ```
 
-### ifft
+---
 
-Compute the one-dimensional inverse discrete Fourier Transform.
+## Frequency Helpers
 
 ```zig
-pub fn ifft(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
+/// DFT sample frequencies for a transform of length `n`.
+pub fn fftfreq(
+    allocator: std.mem.Allocator,
+    n: usize,
+    options: struct { d: f64 = 1.0, dtype: DType = .f64 },
+) !Array;
+
+/// DFT sample frequencies for a real-input transform of length `n` (length = n/2 + 1).
+pub fn rfftfreq(
+    allocator: std.mem.Allocator,
+    n: usize,
+    options: struct { d: f64 = 1.0, dtype: DType = .f64 },
+) !Array;
 ```
 
-## 2D FFT
+---
 
-### fft2
-
-Compute the 2-dimensional discrete Fourier Transform.
+## Shift Helpers
 
 ```zig
-pub fn fft2(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
+/// Shift zero-frequency component to center of spectrum along specified axis.
+pub fn fftshift(a: Array, options: struct { axis: ?isize = null }) !Array;
+
+/// Inverse of fftshift.
+pub fn ifftshift(a: Array, options: struct { axis: ?isize = null }) !Array;
 ```
 
-### ifft2
+---
 
-Compute the 2-dimensional inverse discrete Fourier Transform.
-
-```zig
-pub fn ifft2(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
-```
-
-## N-D FFT
-
-### fftn
-
-Compute the N-dimensional discrete Fourier Transform.
+## Complex Types
 
 ```zig
-pub fn fftn(allocator: Allocator, comptime T: type, a: NDArray(T)) !NDArray(Complex(T))
-```
-
-### ifftn
-
-Compute the N-dimensional inverse discrete Fourier Transform.
-
-```zig
-pub fn ifftn(allocator: Allocator, comptime T: type, a: NDArray(Complex(T))) !NDArray(Complex(T))
+pub const Complex64 = std.math.Complex(f32);   // c64 element type
+pub const Complex128 = std.math.Complex(f64);  // c128 element type
 ```

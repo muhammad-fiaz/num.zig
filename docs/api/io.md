@@ -1,55 +1,79 @@
-# Input/Output API Reference
+# Serialization & I/O API
 
-The `io` module provides functions for reading and writing arrays to disk.
+Module: `@import("num").io`
 
-## Binary I/O
+---
 
-### save
+## NZIG v1.0 Binary I/O
 
-Save an array to a binary file.
-
-```zig
-pub fn save(allocator: Allocator, comptime T: type, arr: NDArray(T), path: []const u8) !void
-```
-
-### load
-
-Load an array from a binary file.
+Native binary format with a deterministic 128-byte header, stable dtype IDs, and little-endian payload.
 
 ```zig
-pub fn load(allocator: Allocator, comptime T: type, path: []const u8) !NDArray(T)
+/// Write an Array to a `.nzig` file at the given path.
+pub fn writeFile(allocator: std.mem.Allocator, file_path: []const u8, arr: Array) !void;
+
+/// Read an Array from a `.nzig` file at the given path.
+pub fn readFile(allocator: std.mem.Allocator, file_path: []const u8) !Array;
+
+/// Serialize an Array into any writer (stream I/O, buffers, sockets).
+pub fn writeToStream(arr: Array, writer: anytype) !void;
+
+/// Deserialize an Array from any reader.
+pub fn readFromStream(allocator: std.mem.Allocator, reader: anytype) !Array;
 ```
 
-### writeArray
-
-Write an array to a writer.
+Top-level convenience aliases:
 
 ```zig
-pub fn writeArray(allocator: Allocator, comptime T: type, arr: NDArray(T), writer: anytype) !void
+pub const save = io.writeFile;
+pub const load = io.readFile;
 ```
 
-### readArray
+---
 
-Read an array from a reader.
+## Delimited Text I/O
 
 ```zig
-pub fn readArray(allocator: Allocator, comptime T: type, reader: anytype) !NDArray(T)
+pub const SaveTxtOptions = struct {
+    delimiter: u8 = ' ',
+    newline: []const u8 = "\n",
+    header: ?[]const u8 = null,
+    footer: ?[]const u8 = null,
+    fmt: []const u8 = "%.18e",
+};
+
+pub fn savetxt(
+    allocator: std.mem.Allocator,
+    comptime T: type,
+    filepath: []const u8,
+    a: Array,
+    options: SaveTxtOptions,
+) !void;
+
+pub const LoadTxtOptions = struct {
+    delimiter: u8 = ' ',
+    skip_rows: usize = 0,
+    max_rows: ?usize = null,
+    comments: u8 = '#',
+};
+
+pub fn loadtxt(
+    allocator: std.mem.Allocator,
+    comptime T: type,
+    filepath: []const u8,
+    options: LoadTxtOptions,
+) !Array;
 ```
 
-## Text I/O
+---
 
-### writeCSV
-
-Write an array to a CSV file.
+## Utilities
 
 ```zig
-pub fn writeCSV(comptime T: type, arr: NDArray(T), path: []const u8) !void
+/// In-memory byte stream for testing and embedding.
+pub const MemoryStream = io.MemoryStream;
+
+/// Format an Array to a writer for human-readable display.
+pub fn formatArray(arr: Array, writer: anytype) !void;
 ```
 
-### readCSV
-
-Read an array from a CSV file.
-
-```zig
-pub fn readCSV(allocator: Allocator, comptime T: type, path: []const u8) !NDArray(T)
-```

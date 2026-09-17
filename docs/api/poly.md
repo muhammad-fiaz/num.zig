@@ -1,67 +1,38 @@
-# Polynomial API Reference
+# Polynomial API
 
-The `poly` module provides functions for polynomial arithmetic and evaluation.
+Module: `@import("num").poly`
+
+Coefficients are stored with highest degree first: `[c_deg, c_{deg-1}, ..., c_0]`.
+
+---
 
 ## Evaluation
 
-### polyval
-
-Evaluate a polynomial at specific values.
-
 ```zig
-pub fn polyval(allocator: Allocator, comptime T: type, p: NDArray(T), x: NDArray(T)) !NDArray(T)
+/// Evaluate polynomial `coeffs` at points `x` using Horner's method.
+/// `coeffs` must be 1D. `x` can have any shape; output matches `x` shape.
+pub fn val(coeffs: Array, x: Array) !Array;
 ```
 
-## Arithmetic
-
-### polyadd
-
-Add two polynomials.
-
-```zig
-pub fn polyadd(allocator: Allocator, comptime T: type, p1: NDArray(T), p2: NDArray(T)) !NDArray(T)
-```
-
-### polysub
-
-Subtract two polynomials.
-
-```zig
-pub fn polysub(allocator: Allocator, comptime T: type, p1: NDArray(T), p2: NDArray(T)) !NDArray(T)
-```
-
-### polymul
-
-Multiply two polynomials.
-
-```zig
-pub fn polymul(allocator: Allocator, comptime T: type, p1: NDArray(T), p2: NDArray(T)) !NDArray(T)
-```
+---
 
 ## Calculus
 
-### polyder
-
-Return the derivative of the specified order of a polynomial.
-
 ```zig
-pub fn polyder(allocator: Allocator, comptime T: type, p: NDArray(T), m: usize) !NDArray(T)
+/// Compute the m-th derivative of polynomial `coeffs`.
+pub fn der(coeffs: Array, m: usize) !Array;
+
+/// Compute the indefinite integral of polynomial `coeffs`, with integration constant `k`.
+pub fn integ(coeffs: Array, k: f64) !Array;
 ```
 
-### polyint
+---
 
-Return an antiderivative (indefinite integral) of a polynomial.
-
-```zig
-pub fn polyint(allocator: Allocator, comptime T: type, p: NDArray(T), m: usize, k: T) !NDArray(T)
-```
-
-## Roots
-
-### roots
-
-Return the roots of a polynomial with coefficients given in p.
+## Regression / Curve Fitting
 
 ```zig
-pub fn roots(allocator: Allocator, comptime T: type, p: NDArray(T)) !NDArray(T)
+/// Fit a polynomial of degree `deg` to data points `(x, y)` via QR least-squares.
+/// Returns coefficients highest degree first: [c_deg, ..., c_0].
+pub fn fit(x: Array, y: Array, deg: usize) !Array;
 ```
+

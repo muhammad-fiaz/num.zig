@@ -1,27 +1,34 @@
 ---
 layout: home
-title: "Num.Zig Documentation | High-Performance Numerical Computing"
-description: "Official Num.Zig docs by Muhammad Fiaz — NDArray, linear algebra, statistics, FFT, machine learning, signal, set operations, IO, and more for Zig."
+title: "num.zig | High-Performance Numerical Computing for Zig"
+description: "A fast, production-ready, high-performance numerical computing and N-dimensional array library for Zig with SIMD acceleration, linear algebra, FFT, statistics, multi-threaded CPU parallel execution, and portable NZIG v1.0 binary serialization."
 
 hero:
   name: "num.zig"
   text: "High-Performance Numerical Computing for Zig"
-  tagline: A NumPy-like library for Zig with zero dependencies.
+  tagline: "Production-ready, pure Zig N-dimensional arrays with SIMD math, linear algebra, multi-threaded CPU parallelism, and portable NZIG v1.0 serialization."
   actions:
     - theme: brand
       text: Get Started
-      link: /guide/quick-start
+      link: /guide/getting-started
+    - theme: alt
+      text: API Reference
+      link: /api/
     - theme: alt
       text: View on GitHub
       link: https://github.com/muhammad-fiaz/num.zig
 
 features:
-  - title: N-Dimensional Arrays
-    details: Efficient NDArray implementation with broadcasting and advanced indexing.
-  - title: Linear Algebra
-    details: Matrix multiplication, decompositions (QR, Cholesky, Eig), and solvers.
-  - title: Machine Learning
-    details: Build and train neural networks with a Keras-like Sequential API.
-  - title: Signal Processing
-    details: FFT, convolution, filtering, and polynomial operations.
+  - title: N-Dimensional Arrays & SBO
+    details: Small Buffer Optimization (SBO) up to 8D inline with zero-copy views for slicing, reshaping, transposing, and broadcasting.
+  - title: Vectorized Math & SIMD
+    details: Auto-vectorized elementwise arithmetic, trigonometry, special functions (erf, hypot, atan2), and boolean logic.
+  - title: Linear Algebra & Decompositions
+    details: Blocked cache-friendly GEMM, LU, QR, Cholesky, SVD, Eigenvalues/vectors, Moore-Penrose pseudoinverse, and matrix powers.
+  - title: Multi-Threaded CPU Parallelism
+    details: Deterministic data-parallel engine with inline configuration, automatic core detection, sequential fallback, and nested parallelism protection.
+  - title: Fast Fourier Transform & Sparse
+    details: Radix-2 Cooley-Tukey FFT/IFFT with complex spectra, plus CSR/CSC sparse matrices with iterative Conjugate Gradient and GMRES solvers.
+  - title: Native NZIG v1.0 Serialization
+    details: Portable, 64-byte aligned, deterministic binary array file format independent of host CPU ABI and endianness.
 ---

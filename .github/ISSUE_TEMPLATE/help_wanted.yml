@@ -1,0 +1,49 @@
+name: Help Wanted / Usage Question
+description: Ask a question about how to use num.zig or solve a numerical computing problem
+title: "[Question]: "
+labels: ["help wanted", "question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about integrating or using **num.zig**? Ask here and the community will help!
+        Please review the official documentation at https://muhammad-fiaz.github.io/num.zig/ first.
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to accomplish?
+      description: Describe your numerical computing goal, algorithm, or task.
+      placeholder: I am implementing an algorithm that requires...
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Your Zig Code Snippet
+      description: Provide the relevant code you have written so far.
+      placeholder: |
+        const std = @import("std");
+        const num = @import("num");
+
+        pub fn main() !void {
+            // ...
+        }
+      render: zig
+    validations:
+      required: true
+  - type: input
+    id: zig_version
+    attributes:
+      label: Zig Version
+      description: Output of `zig version`
+      placeholder: "0.16.0"
+    validations:
+      required: true
+  - type: input
+    id: num_version
+    attributes:
+      label: num.zig Version
+      description: Release version or git commit
+      placeholder: "0.0.2"
+    validations:
+      required: true

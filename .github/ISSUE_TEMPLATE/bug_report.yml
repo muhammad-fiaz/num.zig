@@ -1,0 +1,99 @@
+name: Bug Report
+description: File a bug report for num.zig
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in **num.zig**!
+        Please fill out this form with as much detail as possible to help us isolate, reproduce, and fix the issue quickly.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise explanation of what the bug is and what unexpected behavior you observed.
+      placeholder: Describe the problem in detail...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproducible Example
+      description: Provide a minimal, self-contained Zig code example that reproduces the problem. Avoid external dependencies beyond num.zig and the Zig standard library.
+      placeholder: |
+        const std = @import("std");
+        const num = @import("num");
+
+        pub fn main() !void {
+            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+            defer _ = gpa.deinit();
+            const allocator = gpa.allocator();
+
+            // Minimal code reproducing the bug
+        }
+      render: zig
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A concise explanation of what you expected to happen.
+      placeholder: The operation should return ... or compile without error.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior & Error Output
+      description: Paste the exact compiler error output, panic trace, or unexpected runtime values.
+      placeholder: |
+        error: ...
+        panic: ...
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: num_version
+    attributes:
+      label: num.zig Version / Git Commit
+      description: Git commit hash or tagged release version of num.zig being used.
+      placeholder: "e.g. 0.0.2 or commit abc1234"
+    validations:
+      required: true
+  - type: input
+    id: zig_version
+    attributes:
+      label: Zig Version
+      description: Exact output of `zig version` (num.zig requires Zig 0.16.0).
+      placeholder: "0.16.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System & Architecture
+      description: Your OS and CPU target architecture.
+      placeholder: "Windows 11 (x86_64) / Ubuntu 24.04 (x86_64) / macOS Sequoia (aarch64)"
+    validations:
+      required: true
+  - type: input
+    id: build_command
+    attributes:
+      label: Build Command & Optimization Level
+      description: The exact command used to build or run the code.
+      placeholder: "zig build test / zig build run -Doptimize=ReleaseFast / zig run main.zig"
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Checklist
+      options:
+        - label: I have tested and verified this behavior using Zig 0.16.0.
+          required: true
+        - label: I have searched existing GitHub issues and PRs to ensure this is not a duplicate.
+          required: true
+        - label: I have verified this is not an allocator leak caused by missing `deinit()` in caller code.
+          required: true

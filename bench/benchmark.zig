@@ -1,264 +1,133 @@
+//! Performance benchmark suite for num.zig.
+//!
+//! Benchmarks matrix multiplication, elementwise arithmetic, reductions,
+//! sorting, and NZIG v1.0 binary serialization throughput.
+
 const std = @import("std");
 const num = @import("num");
-const NDArray = num.NDArray;
-const Complex = std.math.Complex;
-
-const BenchmarkResult = struct {
-    name: []const u8,
-    time_ms: f64,
-    details: []const u8,
-};
-
-const BenchmarkSuite = struct {
-    results: std.ArrayListUnmanaged(BenchmarkResult),
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) BenchmarkSuite {
-        return .{
-            .results = .{},
-            .allocator = allocator,
-        };
-    }
-
-    pub fn deinit(self: *BenchmarkSuite) void {
-        self.results.deinit(self.allocator);
-    }
-
-    pub fn add(self: *BenchmarkSuite, name: []const u8, time_ms: f64, details: []const u8) !void {
-        try self.results.append(self.allocator, .{
-            .name = name,
-            .time_ms = time_ms,
-            .details = details,
-        });
-    }
-
-    pub fn printSummary(self: *BenchmarkSuite) void {
-        std.debug.print("\n=====================================================================================\n", .{});
-        std.debug.print("                             BENCHMARK RESULTS SUMMARY                               \n", .{});
-        std.debug.print("=====================================================================================\n", .{});
-        std.debug.print("{s:<40} | {s:<15} | {s}\n", .{ "Benchmark", "Time (ms)", "Details" });
-        std.debug.print("-----------------------------------------|-----------------|-------------------------\n", .{});
-
-        for (self.results.items) |res| {
-            std.debug.print("{s:<40} | {d:>10.4} ms   | {s}\n", .{ res.name, res.time_ms, res.details });
-        }
-        std.debug.print("=====================================================================================\n", .{});
-    }
-};
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = std.heap.page_allocator;
 
-    var suite = BenchmarkSuite.init(allocator);
-    defer suite.deinit();
+    var io_threaded: std.Io.Threaded = .init(allocator, .{});
+    defer io_threaded.deinit();
+    const io = io_threaded.io();
+    const clock: std.Io.Clock = .boot;
 
-    std.debug.print("Starting Num.Zig Comprehensive Benchmarks...\n", .{});
+    std.debug.print("====================================================\n", .{});
+    std.debug.print(" num.zig Performance Benchmark Suite (ReleaseFast) \n", .{});
+    std.debug.print("====================================================\n\n", .{});
 
-    try benchCore(allocator, &suite);
-    try benchElementwise(allocator, &suite);
-    try benchLinalg(allocator, &suite);
-    try benchStats(allocator, &suite);
-    try benchML(allocator, &suite);
-    try benchFFT(allocator, &suite);
-
-    suite.printSummary();
-}
-
-fn benchCore(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    const size = 1_000_000;
-    var timer = try std.time.Timer.start();
-
-    // 1. Allocation & Initialization (zeros)
-    timer.reset();
-    var a = try NDArray(f32).zeros(allocator, &.{size});
-    defer a.deinit();
-    const t_zeros = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Core: zeros", t_zeros, "1M elements");
-
-    // 2. ones
-    timer.reset();
-    var b = try NDArray(f32).ones(allocator, &.{size});
-    defer b.deinit();
-    const t_ones = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Core: ones", t_ones, "1M elements");
-
-    // 3. full
-    timer.reset();
-    var c = try NDArray(f32).full(allocator, &.{size}, 3.14);
-    defer c.deinit();
-    const t_full = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Core: full", t_full, "1M elements");
-
-    // 4. arange
-    timer.reset();
-    var d = try NDArray(f32).arange(allocator, 0, @as(f32, @floatFromInt(size)), 1);
-    defer d.deinit();
-    const t_arange = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Core: arange", t_arange, "1M elements");
-
-    // 5. reshape
-    timer.reset();
-    var reshaped = try d.reshape(&.{ 1000, 1000 });
-    defer reshaped.deinit();
-    const t_reshape = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Core: reshape", t_reshape, "1M elements (1D -> 2D)");
-}
-
-fn benchElementwise(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    const size = 1_000_000;
-    var a = try NDArray(f32).full(allocator, &.{size}, 1.5);
-    defer a.deinit();
-    var b = try NDArray(f32).full(allocator, &.{size}, 2.5);
-    defer b.deinit();
-
-    var timer = try std.time.Timer.start();
-
-    // Add
-    timer.reset();
-    var c = try num.elementwise.add(allocator, f32, a, b);
-    defer c.deinit();
-    const t_add = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Elementwise: add", t_add, "1M elements");
-
-    // Mul
-    timer.reset();
-    var d = try num.elementwise.mul(allocator, f32, a, b);
-    defer d.deinit();
-    const t_mul = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Elementwise: mul", t_mul, "1M elements");
-
-    // Sub
-    timer.reset();
-    var e = try num.elementwise.sub(allocator, f32, a, b);
-    defer e.deinit();
-    const t_sub = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Elementwise: sub", t_sub, "1M elements");
-
-    // Div
-    timer.reset();
-    var f = try num.elementwise.div(allocator, f32, a, b);
-    defer f.deinit();
-    const t_div = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Elementwise: div", t_div, "1M elements");
-}
-
-fn benchLinalg(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    // Small/Medium Matrix Multiplication: 256x256
+    // 1. Matrix Multiplication Benchmark: 200x200 f64
     {
-        const n = 256;
-        var a = try NDArray(f32).full(allocator, &.{ n, n }, 1.0);
+        const N: usize = 200;
+        var a = try num.full(allocator, .{ .shape = &.{ N, N }, .value = @as(f64, 1.01), .dtype = .f64 });
         defer a.deinit();
-        var b = try NDArray(f32).full(allocator, &.{ n, n }, 2.0);
+        var b = try num.full(allocator, .{ .shape = &.{ N, N }, .value = @as(f64, 0.99), .dtype = .f64 });
         defer b.deinit();
 
-        var timer = try std.time.Timer.start();
-        var c = try num.linalg.matmul(f32, allocator, &a, &b);
+        const t0 = clock.now(io).nanoseconds;
+        var c = try num.linalg.matmul(a, b, .{});
         defer c.deinit();
-        const t_matmul = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-        try suite.add("Linalg: matmul (256x256)", t_matmul, "256x256 f32");
+        const t1 = clock.now(io).nanoseconds;
+
+        const elapsed_ns: u64 = @intCast(@max(1, t1 - t0));
+        const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+
+        const gflops = (2.0 * @as(f64, N) * @as(f64, N) * @as(f64, N)) / (@as(f64, @floatFromInt(elapsed_ns)));
+        std.debug.print("1. Matmul ({d}x{d} f64):\n   Time: {d:.2} ms | {d:.2} GFLOPS\n\n", .{ N, N, elapsed_ms, gflops });
     }
 
-    // Larger Matrix Multiplication: 512x512
+    // 2. Elementwise Addition Benchmark: 1,000,000 f64
     {
-        const n = 512;
-        var a = try NDArray(f32).full(allocator, &.{ n, n }, 1.0);
+        const N: usize = 1_000_000;
+        var a = try num.full(allocator, .{ .shape = &.{N}, .value = @as(f64, 2.5), .dtype = .f64 });
         defer a.deinit();
-        var b = try NDArray(f32).full(allocator, &.{ n, n }, 2.0);
+        var b = try num.full(allocator, .{ .shape = &.{N}, .value = @as(f64, 1.5), .dtype = .f64 });
         defer b.deinit();
 
-        var timer = try std.time.Timer.start();
-        var c = try num.linalg.matmul(f32, allocator, &a, &b);
+        const t0 = clock.now(io).nanoseconds;
+        var c = try num.ops.add(a, b, .{});
         defer c.deinit();
-        const t_matmul = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-        try suite.add("Linalg: matmul (512x512)", t_matmul, "512x512 f32");
+        const t1 = clock.now(io).nanoseconds;
+
+        const elapsed_ns: u64 = @intCast(@max(1, t1 - t0));
+        const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+        const throughput_mbe = (@as(f64, N) / 1_000_000.0) / (@as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0);
+
+        std.debug.print("2. Elementwise Add (1M f64):\n   Time: {d:.2} ms | {d:.2} M elements/sec\n\n", .{ elapsed_ms, throughput_mbe });
     }
 
-    // Dot Product (Large Vector)
+    // 3. Reduction Benchmark: sum over 1,000,000 f64
     {
-        const size = 1_000_000;
-        var a = try NDArray(f32).full(allocator, &.{size}, 1.0);
+        const N: usize = 1_000_000;
+        var a = try num.full(allocator, .{ .shape = &.{N}, .value = @as(f64, 1.0), .dtype = .f64 });
         defer a.deinit();
-        var b = try NDArray(f32).full(allocator, &.{size}, 2.0);
-        defer b.deinit();
 
-        var timer = try std.time.Timer.start();
-        const res = try num.linalg.dot(f32, allocator, &a, &b);
-        _ = res;
-        const t_dot = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-        try suite.add("Linalg: dot", t_dot, "1M elements");
+        const t0 = clock.now(io).nanoseconds;
+        var s = try num.reduce.sum(a, .{});
+        defer s.deinit();
+        const t1 = clock.now(io).nanoseconds;
+
+        const elapsed_ns: u64 = @intCast(@max(1, t1 - t0));
+        const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
+
+        std.debug.print("3. Reduction Sum (1M f64):\n   Time: {d:.2} ms | Sum: {d:.0}\n\n", .{ elapsed_ms, try s.get(f64, &.{}) });
     }
-}
 
-fn benchStats(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    const size = 1_000_000;
-    var a = try NDArray(f32).arange(allocator, 0, @as(f32, @floatFromInt(size)), 1);
-    defer a.deinit();
+    // 4. In-Place Sort: 100,000 f64
+    {
+        const N: usize = 100_000;
+        var rng = num.random.Prng.init(42);
+        var arr = try num.random.uniform(allocator, .{ .low = 0.0, .high = 1000.0, .shape = &.{N}, .rng = &rng });
+        defer arr.deinit();
 
-    var timer = try std.time.Timer.start();
+        const t0 = clock.now(io).nanoseconds;
+        try num.sort.sort(&arr, .{ .order = .asc });
+        const t1 = clock.now(io).nanoseconds;
 
-    // Sum
-    timer.reset();
-    _ = try num.stats.sum(f32, &a);
-    const t_sum = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Stats: sum", t_sum, "1M elements");
+        const elapsed_ns: u64 = @intCast(@max(1, t1 - t0));
+        const elapsed_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0;
 
-    // Mean
-    timer.reset();
-    _ = try num.stats.mean(f32, &a);
-    const t_mean = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Stats: mean", t_mean, "1M elements");
+        std.debug.print("4. QuickSort (100k f64):\n   Time: {d:.2} ms\n\n", .{elapsed_ms});
+    }
 
-    // Std Dev
-    timer.reset();
-    _ = try num.stats.std_val(f32, &a);
-    const t_std = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("Stats: std_val", t_std, "1M elements");
-}
+    // 5. NZIG v1.0 Serialization & Deserialization: 500,000 f64 (4 MB payload)
+    {
+        const N: usize = 500_000;
+        var arr = try num.full(allocator, .{ .shape = &.{N}, .value = @as(f64, 3.14159), .dtype = .f64 });
+        defer arr.deinit();
 
-fn benchML(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    // Dense Layer Forward Pass simulation: batch=32, input=512 -> output=256
-    const batch_size = 32;
-    const input_features = 512;
-    const output_neurons = 256;
+        const payload_bytes = N * @sizeOf(f64);
+        const buf = try allocator.alloc(u8, payload_bytes + num.io.nzig.HEADER_SIZE);
+        defer allocator.free(buf);
 
-    var input = try NDArray(f32).full(allocator, &.{ batch_size, input_features }, 1.0);
-    defer input.deinit();
-    var weights = try NDArray(f32).full(allocator, &.{ input_features, output_neurons }, 0.5);
-    defer weights.deinit();
+        var ms = num.io.MemoryStream.init(buf);
 
-    var timer = try std.time.Timer.start();
+        const t0_w = clock.now(io).nanoseconds;
+        try num.io.writeToStream(arr, &ms);
+        const t1_w = clock.now(io).nanoseconds;
+        const write_ns: u64 = @intCast(@max(1, t1_w - t0_w));
 
-    // Matmul
-    var z = try num.linalg.matmul(f32, allocator, &input, &weights);
-    defer z.deinit();
+        var rs = num.io.MemoryStream.init(ms.getWritten());
+        rs.written = ms.written;
 
-    // Add Bias (using a full bias array and add)
-    var bias = try NDArray(f32).full(allocator, &.{output_neurons}, 0.1);
-    defer bias.deinit();
-    var output = try num.ops.add(f32, allocator, &z, &bias);
-    defer output.deinit();
+        const t0_r = clock.now(io).nanoseconds;
+        var loaded = try num.io.readFromStream(allocator, &rs);
+        defer loaded.deinit();
+        const t1_r = clock.now(io).nanoseconds;
+        const read_ns: u64 = @intCast(@max(1, t1_r - t0_r));
 
-    // ReLU (max with 0)
-    var zeros = try NDArray(f32).zeros(allocator, output.shape);
-    defer zeros.deinit();
-    var activated = try num.elementwise.maximum(allocator, f32, output, zeros);
-    defer activated.deinit();
+        const mb = @as(f64, @floatFromInt(payload_bytes)) / (1024.0 * 1024.0);
+        const write_mb_s = mb / (@as(f64, @floatFromInt(write_ns)) / 1_000_000_000.0);
+        const read_mb_s = mb / (@as(f64, @floatFromInt(read_ns)) / 1_000_000_000.0);
 
-    const t_ml = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("ML: Dense Layer Forward", t_ml, "32x512 -> 256 (Matmul+Add+ReLU)");
-}
+        std.debug.print("5. NZIG v1.0 Serialization ({d:.1} MB payload):\n", .{mb});
+        std.debug.print("   Write: {d:.2} GB/s ({d:.2} ms)\n", .{ write_mb_s / 1024.0, @as(f64, @floatFromInt(write_ns)) / 1_000_000.0 });
+        std.debug.print("   Read:  {d:.2} GB/s ({d:.2} ms)\n\n", .{ read_mb_s / 1024.0, @as(f64, @floatFromInt(read_ns)) / 1_000_000.0 });
+    }
 
-fn benchFFT(allocator: std.mem.Allocator, suite: *BenchmarkSuite) !void {
-    const fft_size = 32768; // Power of 2
-    var signal = try NDArray(f32).init(allocator, &.{fft_size});
-    defer signal.deinit();
-    for (signal.data) |*val| val.* = 1.0;
-
-    var timer = try std.time.Timer.start();
-    var fft_res = try num.fft.FFT.fft(allocator, &signal);
-    defer fft_res.deinit();
-    const fft_time = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
-    try suite.add("FFT: 1D FFT", fft_time, "32768 points");
+    std.debug.print("====================================================\n", .{});
+    std.debug.print(" All benchmarks completed successfully.            \n", .{});
+    std.debug.print("====================================================\n", .{});
 }

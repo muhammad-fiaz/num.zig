@@ -1,0 +1,49 @@
+name: Feature Request
+description: Propose a new feature, API addition, or enhancement for num.zig
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping shape the future of **num.zig**!
+        Please describe the proposed feature, mathematical definition, or API design clearly.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Motivation & Use Case
+      description: What numerical, performance, or architectural problem does this feature solve?
+      placeholder: Currently, when attempting to compute...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed API & Function Signatures
+      description: Provide an example of how you envision using this in Zig code.
+      placeholder: |
+        // Proposed function signature and usage:
+        pub fn svd(allocator: std.mem.Allocator, comptime T: type, a: *const Array) !SvdResult;
+      render: zig
+    validations:
+      required: true
+  - type: textarea
+    id: numerical_details
+    attributes:
+      label: Mathematical Background or Specification
+      description: Provide formulas, algorithms, or technical references defining the expected behavior.
+      placeholder: The algorithm should compute ... according to ...
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative approaches, workarounds, or existing patterns you considered.
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and discussions to ensure this feature hasn't already been requested.
+          required: true
+        - label: I understand this project strictly follows Zig idioms (explicit allocators, zero hidden allocations, Zig 0.16.0 compatibility).
+          required: true

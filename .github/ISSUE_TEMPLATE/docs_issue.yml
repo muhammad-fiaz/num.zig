@@ -1,0 +1,39 @@
+name: Documentation Issue
+description: Report an error, missing API documentation, or unclear explanation in num.zig docs
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping keep the **num.zig** documentation accurate, clear, and comprehensive!
+  - type: textarea
+    id: page
+    attributes:
+      label: Affected Documentation Page or URL
+      description: Provide the specific documentation URL or repository file path.
+      placeholder: "https://muhammad-fiaz.github.io/num.zig/guide/... or docs/api/..."
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Documentation Gap or Error
+      description: Explain what is missing, outdated, or inaccurate.
+      placeholder: The code example in the section demonstrates... which no longer compiles or is missing an allocator parameter.
+    validations:
+      required: true
+  - type: textarea
+    id: suggested_fix
+    attributes:
+      label: Suggested Correction or Improvement
+      description: Provide the corrected text, markdown snippet, or Zig example code if available.
+      placeholder: Update the code snippet to: ...
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Checklist
+      options:
+        - label: I have verified this documentation issue against the latest version of the repository.
+          required: true
+        - label: I would be willing to submit a pull request fixing this documentation issue.
