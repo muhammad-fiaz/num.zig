@@ -15,13 +15,13 @@ var arr = try num.fromSlice(allocator, f64, .{
 });
 defer arr.deinit();
 
-num.sort.sort(f64, &arr, 0); // arr is now [1.0, 3.0, 4.0, 7.0, 9.0]
+try num.sort.sort(&arr, .{ .axis = 0 }); // arr is now [1.0, 3.0, 4.0, 7.0, 9.0]
 ```
 
 ### `sorted` (Copy)
 Returns a new sorted copy without mutating the original array:
 ```zig
-var s = try num.sort.sorted(allocator, f64, &arr, 0);
+var s = try num.sort.sorted(arr, .{ .axis = 0 });
 defer s.deinit();
 ```
 
@@ -32,7 +32,7 @@ defer s.deinit();
 Returns an array of indices that would sort the array along a given axis:
 
 ```zig
-var indices = try num.sort.argsort(allocator, f64, &arr, 0);
+var indices = try num.sort.argsort(arr, .{ .axis = 0 });
 defer indices.deinit();
 ```
 
@@ -55,7 +55,7 @@ var queries = try num.fromSlice(allocator, f64, .{
 });
 defer queries.deinit();
 
-var ins_idx = try num.sort.searchSorted(allocator, f64, &sorted_arr, &queries);
+var ins_idx = try num.sort.searchSorted(sorted_arr, queries, .{ .side = .left });
 defer ins_idx.deinit(); // [2, 0, 4]
 ```
 
@@ -68,8 +68,8 @@ Perform mathematical set theory operations on 1D arrays:
 ### `unique`
 Extracts unique sorted elements (optionally returning occurrence counts and inverse indices):
 ```zig
-var u = try num.sort.unique(allocator, f64, &arr);
-defer u.values.deinit();
+var u = try num.sort.unique(arr, .{});
+defer u.deinit();
 ```
 
 ### Set Intersections and Differences

@@ -29,7 +29,7 @@ pub fn percentile(arr: Array, q: f64, options: struct { axis: ?isize = null, kee
 
 ```zig
 pub fn covariance(x: Array, y: ?Array, options: struct { rowvar: bool = true, bias: bool = false, ddof: ?usize = null }) !Array;
-pub fn corrcoef(x: Array, y: ?Array, options: struct { rowvar: bool = true }) !Array;
+pub fn corrcoef(x: Array, y: ?Array, options: struct { rowvar: bool = true, bias: bool = false, ddof: ?usize = null }) !Array;
 ```
 
 ---

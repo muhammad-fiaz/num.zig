@@ -15,7 +15,7 @@ pub fn reshape(
     options: struct { shape: []const isize, order: Order = .c },
 ) !Array;
 
-/// Returns a flattened 1D copy in C order.
+/// Returns a flattened 1D view when the array is contiguous, otherwise a flattened copy.
 pub fn ravel(arr: Array) !Array;
 
 /// Returns a contiguous 1D copy, always allocating.
@@ -43,18 +43,22 @@ pub fn atleast3d(arr: Array) !Array;
 ## Index Utilities
 
 ```zig
-/// Convert a flat linear index to N-dimensional indices.
+/// Convert flat linear indices to an [n, ndim] coordinate array (dtype .i64).
 pub fn unravelIndex(
-    index: usize,
-    shape: []const usize,
-    options: struct { order: Order = .c },
-) ![]usize;
+    allocator: std.mem.Allocator,
+    flat_indices: []const usize,
+    dims: []const usize,
+) !Array;
 
-/// Convert N-dimensional indices to a flat linear index.
-pub fn ravelIndex(indices: []const usize, shape: []const usize, options: struct { order: Order = .c }) usize;
+/// Convert an [n, ndim] coordinate array to flat linear indices.
+pub fn ravelIndex(
+    allocator: std.mem.Allocator,
+    coords: Array,
+    dims: []const usize,
+) !Array;
 
-/// Generate an open mesh of indices for a given shape.
-pub fn indices(allocator: std.mem.Allocator, shape: []const usize) ![]Array;
+/// Generate a single Array of grid coordinates of shape [ndim, ...dims] (dtype .i64).
+pub fn indices(allocator: std.mem.Allocator, dims: []const usize) !Array;
 ```
 
 ---

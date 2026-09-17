@@ -33,9 +33,9 @@ The `num.DType` enum identifies data types across runtime and compile-time opera
 
 ```zig
 const dt = num.DType.fromType(f64); // returns num.DType.f64
-const size = dt.size();             // returns 8
+const size = dt.sizeOf();           // returns 8
 const is_float = dt.isFloat();      // returns true
-const is_int = dt.isInt();          // returns false
+const is_int = dt.isInteger();      // returns false
 ```
 
 ---
@@ -45,7 +45,7 @@ const is_int = dt.isInt();          // returns false
 When performing mixed binary operations (e.g. adding an `i32` array and an `f32` array), `num.zig` calculates the common promoted type according to standard mathematical rules:
 
 ```zig
-const promoted = num.promoteDTypes(.i32, .f32); // returns .f64
+const promoted = num.DType.promote(.i32, .f32); // returns .f64
 ```
 
 ### Hierarchy Lattice

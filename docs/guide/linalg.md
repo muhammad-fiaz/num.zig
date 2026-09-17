@@ -57,7 +57,7 @@ defer a_inv.deinit();
 - **QR Decomposition (`qr`)**: Computes $A = Q \cdot R$ via Householder reflections.
 - **Cholesky Decomposition (`cholesky`)**: Decomposes symmetric positive-definite $A = L \cdot L^T$.
 - **Singular Value Decomposition (`svd`)**: Computes $A = U \cdot \Sigma \cdot V^T$.
-- **Eigenvalues and Eigenvectors (`eig`, `eigh`)**: Solves $A v = \lambda v$ for general and symmetric/Hermitian matrices.
+- **Eigenvalues and Eigenvectors (`eig`, `eigvals`)**: Solves $A v = \lambda v$ for general square matrices.
 
 ---
 
@@ -67,4 +67,3 @@ defer a_inv.deinit();
 - **`trace`**: Sum along the main diagonal.
 - **`matrixRank`**: Numerical rank via singular value thresholding.
 - **`norm`**: Matrix and vector norms (Frobenius, L1, L2, Linf).
-- **`cond`**: Condition number.

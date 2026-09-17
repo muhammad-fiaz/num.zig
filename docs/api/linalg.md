@@ -76,7 +76,7 @@ pub const SlogdetResult = struct {
     pub fn deinit(self: *SlogdetResult) void;
 };
 pub fn slogdet(a: Array) !SlogdetResult;
-pub fn trace(a: Array, options: struct { offset: isize = 0, axis1: usize = 0, axis2: usize = 1 }) !Array;
+pub fn trace(a: Array) !Array;
 pub fn matrixRank(a: Array, options: struct { tol: ?f64 = null }) !usize;
 pub fn norm(a: Array, options: struct { ord: NormOrder = .l2, axis: ?isize = null, keepDims: bool = false }) !Array;
 ```

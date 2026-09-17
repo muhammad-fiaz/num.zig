@@ -34,34 +34,17 @@ pub const load = io.readFile;
 ## Delimited Text I/O
 
 ```zig
-pub const SaveTxtOptions = struct {
-    delimiter: u8 = ' ',
-    newline: []const u8 = "\n",
-    header: ?[]const u8 = null,
-    footer: ?[]const u8 = null,
-    fmt: []const u8 = "%.18e",
-};
-
 pub fn savetxt(
     allocator: std.mem.Allocator,
-    comptime T: type,
-    filepath: []const u8,
-    a: Array,
-    options: SaveTxtOptions,
+    arr: Array,
+    file_path: []const u8,
+    options: struct { delimiter: []const u8 = ",", header: []const u8 = "", footer: []const u8 = "" },
 ) !void;
-
-pub const LoadTxtOptions = struct {
-    delimiter: u8 = ' ',
-    skip_rows: usize = 0,
-    max_rows: ?usize = null,
-    comments: u8 = '#',
-};
 
 pub fn loadtxt(
     allocator: std.mem.Allocator,
-    comptime T: type,
-    filepath: []const u8,
-    options: LoadTxtOptions,
+    file_path: []const u8,
+    options: struct { delimiter: []const u8 = ",", skipRows: usize = 0, dtype: DType = .f64 },
 ) !Array;
 ```
 

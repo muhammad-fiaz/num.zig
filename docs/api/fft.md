@@ -10,13 +10,8 @@ Both `fft` and `ifft` operate along a specified axis and support complex and rea
 Real inputs are automatically promoted to the appropriate complex dtype (`c64` for `f32`, `c128` for `f64`).
 
 ```zig
-pub const FftOptions = struct {
-    axis: isize = -1,
-    norm: enum { backward, ortho, forward } = .backward,
-};
-
-pub fn fft(a: Array, options: FftOptions) !Array;
-pub fn ifft(a: Array, options: FftOptions) !Array;
+pub fn fft(a: Array, options: struct { axis: isize = -1, norm: enum { backward, ortho, forward } = .backward }) !Array;
+pub fn ifft(a: Array, options: struct { axis: isize = -1, norm: enum { backward, ortho, forward } = .backward }) !Array;
 ```
 
 ---

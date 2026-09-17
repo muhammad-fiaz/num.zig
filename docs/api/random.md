@@ -22,33 +22,19 @@ pub const Prng = struct {
 All distribution functions accept an optional `rng: ?*Prng` — pass an explicit `Prng` for reproducibility, or `null` for system-entropy seeding (no shared global state).
 
 ```zig
-pub const UniformOptions = struct {
-    shape: []const usize,
-    low: f64 = 0.0,
-    high: f64 = 1.0,
-    dtype: DType = .f64,
-    rng: ?*Prng = null,
-};
-pub fn uniform(allocator: std.mem.Allocator, options: UniformOptions) !Array;
+pub fn uniform(allocator: std.mem.Allocator, options: struct { shape: []const usize = &.{}, low: f64 = 0.0, high: f64 = 1.0, dtype: DType = .f64, rng: ?*Prng = null }) !Array;
 
 /// Convenience: uniform [0.0, 1.0), dtype=f64.
 pub fn rand(allocator: std.mem.Allocator, shape: []const usize, rng: ?*Prng) !Array;
 
-pub const NormalOptions = struct {
-    shape: []const usize = &.{},
-    loc: f64 = 0.0,
-    scale: f64 = 1.0,
-    dtype: DType = .f64,
-    rng: ?*Prng = null,
-};
-pub fn normal(allocator: std.mem.Allocator, options: NormalOptions) !Array;
+pub fn normal(allocator: std.mem.Allocator, options: struct { shape: []const usize = &.{}, loc: f64 = 0.0, scale: f64 = 1.0, dtype: DType = .f64, rng: ?*Prng = null }) !Array;
 
 /// Convenience: standard normal (mean=0, std=1), dtype=f64.
 pub fn randn(allocator: std.mem.Allocator, shape: []const usize, rng: ?*Prng) !Array;
 
 pub fn integers(
     allocator: std.mem.Allocator,
-    options: struct { shape: []const usize, low: i64, high: i64, dtype: DType = .i64, rng: ?*Prng = null },
+    options: struct { shape: []const usize = &.{}, low: i64 = 0, high: i64 = 100, endpoint: bool = false, dtype: DType = .i64, rng: ?*Prng = null },
 ) !Array;
 ```
 
