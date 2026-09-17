@@ -568,7 +568,8 @@ fn executeArgReduction(
     is_max: bool,
     axis_opt: ?isize,
     keepDims: bool,
-) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
+) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arr.elementCount() == 0) return ShapeError.EmptyArray;
     const s = arr.shape();
 
     if (axis_opt == null) {
