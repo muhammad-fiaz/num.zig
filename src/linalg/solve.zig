@@ -109,6 +109,98 @@ pub fn solve(a: Array, b: Array) (ShapeError || LinalgError || DTypeError || Ind
     return x;
 }
 
+/// Solves a triangular system: A * x = b where A is upper or lower triangular.
+/// No decomposition is performed; forward/backward substitution runs directly.
+pub fn solveTriangular(
+    a: Array,
+    b: Array,
+    options: struct { lower: bool = true },
+) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const s_a = a.shape();
+    const s_b = b.shape();
+    if (s_a.ndim != 2) return ShapeError.InvalidDimension;
+    if (s_a.dims[0] != s_a.dims[1]) return LinalgError.MatrixNotSquare;
+    const n = s_a.dims[0];
+    if (s_b.dims[0] != n) return LinalgError.IncompatibleDimensions;
+
+    const is_b_1d = s_b.ndim == 1;
+    const n_rhs: usize = if (is_b_1d) 1 else s_b.dims[1];
+    const float_dtype: DType = if (a.dtype == .f32) .f32 else .f64;
+
+    var x = if (is_b_1d)
+        try zeros(a.allocator, .{ .shape = &.{n}, .dtype = float_dtype })
+    else
+        try zeros(a.allocator, .{ .shape = &.{ n, n_rhs }, .dtype = float_dtype });
+    errdefer x.deinit();
+
+    if (options.lower) {
+        for (0..n) |i| {
+            const a_ii = try a.getAsFloat(&.{ i, i });
+            if (@abs(a_ii) < 1e-15) return LinalgError.SingularMatrix;
+            for (0..n_rhs) |col| {
+                var sum: f64 = 0;
+                for (0..i) |j| {
+                    const a_ij = try a.getAsFloat(&.{ i, j });
+                    const x_jc = if (is_b_1d) try x.getAsFloat(&.{j}) else try x.getAsFloat(&.{ j, col });
+                    sum += a_ij * x_jc;
+                }
+                const b_ic = if (is_b_1d) try b.getAsFloat(&.{i}) else try b.getAsFloat(&.{ i, col });
+                const val = (b_ic - sum) / a_ii;
+                if (is_b_1d) try x.setFromFloat(&.{i}, val) else try x.setFromFloat(&.{ i, col }, val);
+            }
+        }
+    } else {
+        var i: usize = n;
+        while (i > 0) {
+            i -= 1;
+            const a_ii = try a.getAsFloat(&.{ i, i });
+            if (@abs(a_ii) < 1e-15) return LinalgError.SingularMatrix;
+            for (0..n_rhs) |col| {
+                var sum: f64 = 0;
+                for (i + 1..n) |j| {
+                    const a_ij = try a.getAsFloat(&.{ i, j });
+                    const x_jc = if (is_b_1d) try x.getAsFloat(&.{j}) else try x.getAsFloat(&.{ j, col });
+                    sum += a_ij * x_jc;
+                }
+                const b_ic = if (is_b_1d) try b.getAsFloat(&.{i}) else try b.getAsFloat(&.{ i, col });
+                const val = (b_ic - sum) / a_ii;
+                if (is_b_1d) try x.setFromFloat(&.{i}, val) else try x.setFromFloat(&.{ i, col }, val);
+            }
+        }
+    }
+    return x;
+}
+
+/// Solves a symmetric positive-definite system via Cholesky factorization.
+/// Reuses the shared Cholesky and triangular-substitution kernels.
+pub fn solveSpd(a: Array, b: Array) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const cholesky = @import("decompose.zig").cholesky;
+    const transpose = @import("../manip/transpose.zig").transpose;
+    var l = try cholesky(a);
+    defer l.deinit();
+    var y = try solveTriangular(l, b, .{ .lower = true });
+    defer y.deinit();
+    var lt = try transpose(l, .{});
+    defer lt.deinit();
+    return solveTriangular(lt, y, .{ .lower = false });
+}
+
+/// Least-squares solution to an overdetermined system: min ||A x - b||.
+/// Solves the normal equations (A^T A) x = A^T b reusing transpose, matmul, and LU solve.
+pub fn lstsq(a: Array, b: Array) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const transpose = @import("../manip/transpose.zig").transpose;
+    const matmul = @import("matmul.zig").matmul;
+    const s_a = a.shape();
+    if (s_a.ndim != 2) return ShapeError.InvalidDimension;
+    var at = try transpose(a, .{});
+    defer at.deinit();
+    var ata = try matmul(at, a, .{});
+    defer ata.deinit();
+    var atb = try matmul(at, b, .{});
+    defer atb.deinit();
+    return solve(ata, atb);
+}
+
 /// Computes the multiplicative inverse of a square matrix.
 pub fn inv(a: Array) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
     const s = a.shape();
@@ -476,4 +568,65 @@ test "linear solve, inverse, and determinant" {
     defer sl.deinit();
     try std.testing.expectEqual(@as(f64, 1.0), try sl.sign.get(f64, &.{}));
     try std.testing.expectApproxEqAbs(@as(f64, @log(5.0)), try sl.logabsdet.get(f64, &.{}), 1e-6);
+}
+
+test "triangular, SPD, and least-squares solvers" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const matmul = @import("matmul.zig").matmul;
+
+    // Lower-triangular: [[2, 0], [1, 3]] * [x0, x1] = [4, 7] -> x = [2, 5/3]
+    const l_data = [_]f64{ 2, 0, 1, 3 };
+    var l = try fromSlice(allocator, f64, .{ .data = &l_data, .shape = &.{ 2, 2 } });
+    defer l.deinit();
+    const lb_data = [_]f64{ 4, 7 };
+    var lb = try fromSlice(allocator, f64, .{ .data = &lb_data, .shape = &.{2} });
+    defer lb.deinit();
+    var xl = try solveTriangular(l, lb, .{ .lower = true });
+    defer xl.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 2.0), try xl.get(f64, &.{0}), 1e-9);
+    try std.testing.expectApproxEqAbs(@as(f64, 5.0 / 3.0), try xl.get(f64, &.{1}), 1e-9);
+
+    // Upper-triangular: [[2, 1], [0, 3]] * x = [5, 6] -> x = [1.5, 2]
+    const u_data = [_]f64{ 2, 1, 0, 3 };
+    var u = try fromSlice(allocator, f64, .{ .data = &u_data, .shape = &.{ 2, 2 } });
+    defer u.deinit();
+    const ub_data = [_]f64{ 5, 6 };
+    var ub = try fromSlice(allocator, f64, .{ .data = &ub_data, .shape = &.{2} });
+    defer ub.deinit();
+    var xu = try solveTriangular(u, ub, .{ .lower = false });
+    defer xu.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 1.5), try xu.get(f64, &.{0}), 1e-9);
+    try std.testing.expectApproxEqAbs(@as(f64, 2.0), try xu.get(f64, &.{1}), 1e-9);
+
+    // SPD: [[4, 1], [1, 3]] * x = [5, 4] -> x = [1, 1]
+    const s_data = [_]f64{ 4, 1, 1, 3 };
+    var s_mat = try fromSlice(allocator, f64, .{ .data = &s_data, .shape = &.{ 2, 2 } });
+    defer s_mat.deinit();
+    const sb_data = [_]f64{ 5, 4 };
+    var sb = try fromSlice(allocator, f64, .{ .data = &sb_data, .shape = &.{2} });
+    defer sb.deinit();
+    var xs = try solveSpd(s_mat, sb);
+    defer xs.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), try xs.get(f64, &.{0}), 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), try xs.get(f64, &.{1}), 1e-6);
+
+    // Least-squares: fit y = 2x + 1 through (0,1),(1,3),(2,5)
+    const a_data = [_]f64{ 0, 1, 1, 1, 2, 1 };
+    var amat = try fromSlice(allocator, f64, .{ .data = &a_data, .shape = &.{ 3, 2 } });
+    defer amat.deinit();
+    const y_data = [_]f64{ 1, 3, 5 };
+    var y = try fromSlice(allocator, f64, .{ .data = &y_data, .shape = &.{3} });
+    defer y.deinit();
+    var xls = try lstsq(amat, y);
+    defer xls.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 2.0), try xls.get(f64, &.{0}), 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), try xls.get(f64, &.{1}), 1e-6);
+
+    // Residual check: A xls ≈ y
+    var pred = try matmul(amat, xls, .{});
+    defer pred.deinit();
+    for (0..3) |i| {
+        try std.testing.expectApproxEqAbs(y_data[i], try pred.get(f64, &.{i}), 1e-6);
+    }
 }

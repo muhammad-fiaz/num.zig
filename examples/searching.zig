@@ -60,4 +60,28 @@ pub fn main() !void {
     var coords = try num.sort.argwhere(mat2d);
     defer coords.deinit();
     std.debug.print("argwhere nonzeros count: {d}\n", .{coords.shapeSlice()[0]});
+
+    // 5. Set operations on 1D integer arrays
+    const s1_data = [_]i64{ 1, 2, 3, 4 };
+    var s1 = try num.fromSlice(allocator, i64, .{ .data = &s1_data, .shape = &.{4} });
+    defer s1.deinit();
+    const s2_data = [_]i64{ 3, 4, 5, 6 };
+    var s2 = try num.fromSlice(allocator, i64, .{ .data = &s2_data, .shape = &.{4} });
+    defer s2.deinit();
+
+    var inter = try num.sort.intersect1d(s1, s2);
+    defer inter.deinit();
+    std.debug.print("intersect1d count: {d}\n", .{inter.elementCount()});
+
+    var uni = try num.sort.union1d(s1, s2);
+    defer uni.deinit();
+    std.debug.print("union1d count: {d}\n", .{uni.elementCount()});
+
+    var diff = try num.sort.setdiff1d(s1, s2);
+    defer diff.deinit();
+    std.debug.print("setdiff1d count: {d}\n", .{diff.elementCount()});
+
+    var member = try num.sort.isin(s1, s2);
+    defer member.deinit();
+    std.debug.print("isin(s1 in s2)[2] (3 in s2): {}\n", .{try member.get(bool, &.{2})});
 }

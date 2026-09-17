@@ -141,6 +141,7 @@ Complex dtypes (`c64`, `c128`) only. Comparisons and ordering on complex arrays 
 
 ```zig
 pub fn conj(a: Array) !Array;        // alias: conjugate; preserves dtype
+pub fn conjTranspose(a: Array) !Array; // 2D Hermitian transpose; returns owned data
 pub fn real(a: Array) !Array;        // c64 -> f32, c128 -> f64
 pub fn imag(a: Array) !Array;        // c64 -> f32, c128 -> f64
 pub fn magnitude(a: Array) !Array;   // |z|, c64 -> f32, c128 -> f64

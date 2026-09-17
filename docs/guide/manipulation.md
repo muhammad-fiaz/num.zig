@@ -1,27 +1,32 @@
 # Shape Manipulation
 
-`num.zig` offers a rich suite of functions for altering array shapes, axes, concatenating, stacking, padding, and tiling.
+`num.zig` offers a rich suite of functions for altering array shapes, axes, concatenating, stacking, padding, and tiling. View-returning operations (`reshape`, `transpose`, `swapAxes`, `moveAxis`, `squeeze`, `expandDims`, `slice`) are zero-allocation; copy-producing operations (`flatten`, `concat`, `stack`, `tile`, `repeat`, `pad`, `append`, `insert`, `delete`) return new owned arrays.
 
 ---
 
 ## 1. Reshape and Flatten
 
-### `reshape` / `reshapeInPlace`
-Changes the dimension of an array without changing its underlying data:
+### `reshape`
+Changes the dimensions of an array without changing its underlying data (view when contiguous):
 
 ```zig
-var a = try num.arange(allocator, f64, 0.0, 6.0, 1.0);
+var a = try num.arange(allocator, .{ .start = 0.0, .stop = 6.0, .step = 1.0, .dtype = .f64 });
 defer a.deinit();
 
 // Reshape 1D [6] into 2D [2, 3]
-try a.reshapeInPlace(&.{ 2, 3 });
+var m = try num.manip.reshape(a, .{ .shape = &.{ 2, 3 } });
+defer m.deinit();
 ```
 
-### `flatten`
-Collapses an N-dimensional array into a 1-D contiguous array:
+### `flatten` / `ravel`
 ```zig
-var flat = try a.flatten();
+// Contiguous 1D copy, always allocating
+var flat = try num.manip.flatten(a);
 defer flat.deinit();
+
+// 1D view when contiguous, copy otherwise
+var r = try num.manip.ravel(a);
+defer r.deinit();
 ```
 
 ---
@@ -29,18 +34,20 @@ defer flat.deinit();
 ## 2. Transposition and Axis Permutation
 
 ### `transpose`
-Permutes axes. By default, reverses all axes:
+Permutes axes. By default, reverses all axes (view):
 ```zig
-// Inverts 2x3 matrix to 3x2
-var t = try a.transpose();
+// Transpose 2x3 matrix to 3x2
+var t = try num.manip.transpose(m, .{});
 defer t.deinit();
 ```
 
 ### `swapAxes` and `moveAxis`
-Swaps two specific axes:
 ```zig
-var s = try a.swapAxes(0, 1);
+var s = try num.manip.swapAxes(m, 0, 1);
 defer s.deinit();
+
+var mv = try num.manip.moveAxis(m, 0, 1);
+defer mv.deinit();
 ```
 
 ---
@@ -50,17 +57,17 @@ defer s.deinit();
 ### `squeeze`
 Removes single-dimensional axes (dimensions equal to 1):
 ```zig
-var tensor = try num.zeros(allocator, f64, &.{ 1, 3, 1, 5 });
+var tensor = try num.zeros(allocator, .{ .shape = &.{ 1, 3, 1, 5 }, .dtype = .f64 });
 defer tensor.deinit();
 
-var sq = try tensor.squeeze(); // Shape becomes [3, 5]
+var sq = try num.manip.squeeze(tensor, .{}); // Shape becomes [3, 5]
 defer sq.deinit();
 ```
 
 ### `expandDims`
 Inserts a new axis of dimension 1 at a specified index:
 ```zig
-var exp = try sq.expandDims(0); // Shape becomes [1, 3, 5]
+var exp = try num.manip.expandDims(sq, .{ .axis = 0 }); // Shape becomes [1, 3, 5]
 defer exp.deinit();
 ```
 
@@ -71,13 +78,14 @@ defer exp.deinit();
 ### `concat`
 Joins multiple arrays along an existing axis:
 ```zig
-var a1 = try num.ones(allocator, f64, &.{ 2, 3 });
+var a1 = try num.ones(allocator, .{ .shape = &.{ 2, 3 }, .dtype = .f64 });
 defer a1.deinit();
-var a2 = try num.zeros(allocator, f64, &.{ 2, 3 });
+var a2 = try num.zeros(allocator, .{ .shape = &.{ 2, 3 }, .dtype = .f64 });
 defer a2.deinit();
 
 // Join along rows (axis 0) -> [4, 3]
-var joined = try num.concat(allocator, f64, &.{ &a1, &a2 }, 0);
+const pair = [_]num.Array{ a1, a2 };
+var joined = try num.manip.concat(&pair, .{ .axis = 0 });
 defer joined.deinit();
 ```
 
@@ -85,15 +93,30 @@ defer joined.deinit();
 Joins a sequence of arrays along a new axis:
 ```zig
 // Stack two [2, 3] arrays along new axis 0 -> [2, 2, 3]
-var stacked = try num.stack(allocator, f64, &.{ &a1, &a2 }, 0);
+var stacked = try num.manip.stack(&pair, .{ .axis = 0 });
 defer stacked.deinit();
+```
+
+### `append`, `insert`, `delete`
+```zig
+// Append values (flattened when axis is null)
+var ap = try num.manip.append(a1, a2, .{});
+defer ap.deinit();
+
+// Insert a2 into a1 at index 1
+var ins = try num.manip.insert(a1, 1, a2, .{ .axis = 0 });
+defer ins.deinit();
+
+// Delete index 0 along axis 0
+var del = try num.manip.delete(joined, 0, .{ .axis = 0 });
+defer del.deinit();
 ```
 
 ---
 
 ## 5. Tile, Repeat, Roll, and Pad
 
-- **`tile`**: Replicates an array by the number of times given by reps.
-- **`repeat`**: Repeats individual elements along an axis.
-- **`roll`**: Rolls array elements along a given axis by a shift amount.
-- **`pad`**: Pads an array along its boundaries with constant or edge values.
+- **`tile`**: Replicates an array by the number of times given by reps: `try num.manip.tile(a, .{ .reps = &.{3} })`.
+- **`repeat`**: Repeats individual elements along an axis: `try num.manip.repeat(a, .{ .repeats = 2 })`.
+- **`roll`**: Rolls array elements along a given axis by a shift amount: `try num.manip.roll(a, .{ .shift = 1, .axis = 0 })`.
+- **`pad`**: Pads an array with a constant value: `try num.manip.pad(a, .{ .pad_width = &.{ .{ 1, 1 } } })`.

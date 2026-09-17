@@ -53,4 +53,9 @@ pub fn main() !void {
     var from_raw = try num.fromSlice(allocator, f64, .{ .data = &raw, .shape = &.{ 2, 2 } });
     defer from_raw.deinit();
     std.debug.print("FromSlice (2x2):\n  val[1,0]: {d:.1}\n", .{try from_raw.get(f64, &.{ 1, 0 })});
+
+    // 8. Scalar (0D) array
+    var sc = try num.scalar(allocator, .{ .value = @as(f64, 3.14) });
+    defer sc.deinit();
+    std.debug.print("Scalar:\n  rank: {d}, value: {d:.2}\n", .{ sc.ndim, try sc.get(f64, &.{}) });
 }

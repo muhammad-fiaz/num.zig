@@ -310,7 +310,29 @@ pub fn svd(
         try s_arr.setFromFloat(&.{i}, d[i]);
     }
 
-    _ = options.full_matrices;
+    if (!options.full_matrices and (M != K or N != K)) {
+        var Ue = try empty(a.allocator, .{ .shape = &.{ M, K }, .dtype = float_dtype });
+        errdefer Ue.deinit();
+        var Vte = try empty(a.allocator, .{ .shape = &.{ K, N }, .dtype = float_dtype });
+        errdefer Vte.deinit();
+        for (0..M) |r| {
+            for (0..K) |c| {
+                try Ue.setFromFloat(&.{ r, c }, try U.getAsFloat(&.{ r, c }));
+            }
+        }
+        for (0..K) |r| {
+            for (0..N) |c| {
+                try Vte.setFromFloat(&.{ r, c }, try Vt.getAsFloat(&.{ r, c }));
+            }
+        }
+        U.deinit();
+        Vt.deinit();
+        return SvdResult{
+            .u = Ue,
+            .s = s_arr,
+            .vt = Vte,
+        };
+    }
 
     return SvdResult{
         .u = U,
@@ -337,4 +359,21 @@ test "svd of 2x2 matrix" {
     // Singular values of diag(3, -4) are 4.0 and 3.0
     try std.testing.expectApproxEqAbs(@as(f64, 4.0), s0, 1e-5);
     try std.testing.expectApproxEqAbs(@as(f64, 3.0), s1, 1e-5);
+}
+
+test "svd economy mode shapes" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const data = [_]f64{ 1, 2, 3, 4, 5, 6 };
+    var a = try fromSlice(allocator, f64, .{ .data = &data, .shape = &.{ 3, 2 } });
+    defer a.deinit();
+    var full_res = try svd(a, .{ .full_matrices = true });
+    defer full_res.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 3, 3 }, full_res.u.shapeSlice());
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, full_res.vt.shapeSlice());
+    var eco = try svd(a, .{ .full_matrices = false });
+    defer eco.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 3, 2 }, eco.u.shapeSlice());
+    try std.testing.expectEqualSlices(usize, &.{2}, eco.s.shapeSlice());
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, eco.vt.shapeSlice());
 }

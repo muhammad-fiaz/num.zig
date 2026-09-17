@@ -101,6 +101,15 @@ pub fn stdDev(
     return sqrt_fn(var_res, .{ .dtype = options.dtype });
 }
 
+/// Interpolation method for quantile/percentile evaluation.
+pub const QuantileMethod = enum {
+    linear,
+    lower,
+    higher,
+    midpoint,
+    nearest,
+};
+
 const MedianOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
@@ -120,6 +129,7 @@ pub fn median(
 const QuantileOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
+    method: QuantileMethod = .linear,
 };
 
 /// Computes the q-th quantile (q in [0.0, 1.0]) along the specified axis or over the entire array.
@@ -154,7 +164,7 @@ pub fn quantileWithOptions(
 
         std.sort.pdq(f64, buffer, {}, std.sort.asc(f64));
 
-        const val = interpolateQuantile(buffer, q);
+        const val = interpolateQuantile(buffer, q, options.method);
 
         const kd_dims = [_]usize{1} ** MAX_RANK;
         const out_shape: []const usize = if (options.keepDims) kd_dims[0..arr.ndim] else &.{};
@@ -220,7 +230,7 @@ pub fn quantileWithOptions(
         }
 
         std.sort.pdq(f64, temp_buf, {}, std.sort.asc(f64));
-        const val = interpolateQuantile(temp_buf, q);
+        const val = interpolateQuantile(temp_buf, q, options.method);
 
         try out.set(f64, item.indices, val);
     }
@@ -231,6 +241,7 @@ pub fn quantileWithOptions(
 const PercentileOptions = struct {
     axis: ?isize = null,
     keepDims: bool = false,
+    method: QuantileMethod = .linear,
 };
 
 /// Computes the q-th percentile (q in [0.0, 100.0]).
@@ -242,10 +253,33 @@ pub fn percentile(
     return quantileWithOptions(arr, q / 100.0, .{
         .axis = options.axis,
         .keepDims = options.keepDims,
+        .method = options.method,
     });
 }
 
-fn interpolateQuantile(sorted: []const f64, q: f64) f64 {
+/// Minimum over a given axis or globally. Direct alias of the shared reduction kernel.
+pub const min = @import("../ops/reduce.zig").min;
+
+/// Maximum over a given axis or globally. Direct alias of the shared reduction kernel.
+pub const max = @import("../ops/reduce.zig").max;
+
+/// Peak-to-peak range (max - min) over a given axis or globally.
+/// Reuses the shared min/max reduction kernels and elementwise subtraction.
+pub fn range(
+    arr: Array,
+    options: struct { axis: ?isize = null, keepDims: bool = false },
+) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    const reduce_min = @import("../ops/reduce.zig").min;
+    const reduce_max = @import("../ops/reduce.zig").max;
+    const subtract_fn = @import("../ops/elementwise.zig").subtract;
+    var lo = try reduce_min(arr, .{ .axis = options.axis, .keepDims = options.keepDims });
+    defer lo.deinit();
+    var hi = try reduce_max(arr, .{ .axis = options.axis, .keepDims = options.keepDims });
+    defer hi.deinit();
+    return subtract_fn(hi, lo, .{});
+}
+
+fn interpolateQuantile(sorted: []const f64, q: f64, method: QuantileMethod) f64 {
     const N = sorted.len;
     if (N == 1) return sorted[0];
 
@@ -254,7 +288,13 @@ fn interpolateQuantile(sorted: []const f64, q: f64) f64 {
     const fraction = idx_float - @as(f64, @floatFromInt(lower));
 
     if (lower + 1 >= N) return sorted[N - 1];
-    return sorted[lower] + fraction * (sorted[lower + 1] - sorted[lower]);
+    return switch (method) {
+        .linear => sorted[lower] + fraction * (sorted[lower + 1] - sorted[lower]),
+        .lower => sorted[lower],
+        .higher => sorted[lower + 1],
+        .midpoint => (sorted[lower] + sorted[lower + 1]) / 2.0,
+        .nearest => if (fraction < 0.5) sorted[lower] else sorted[lower + 1],
+    };
 }
 
 test "variance and stdDev" {
@@ -302,4 +342,43 @@ test "median, quantile, and percentile" {
     var p75 = try percentile(arr, 75.0, .{});
     defer p75.deinit();
     try std.testing.expectApproxEqAbs(@as(f64, 7.5), try p75.get(f64, &.{}), 1e-5);
+}
+
+test "quantile interpolation methods" {
+    const allocator = std.testing.allocator;
+    const items = [_]f64{ 1.0, 2.0, 3.0, 4.0 };
+    var arr = try fromSlice(allocator, f64, .{ .data = &items, .shape = &.{4} });
+    defer arr.deinit();
+    // idx = 0.5 * 3 = 1.5 between sorted[1] = 2 and sorted[2] = 3
+    var qlin = try quantileWithOptions(arr, 0.5, .{ .method = .linear });
+    defer qlin.deinit();
+    try std.testing.expectApproxEqAbs(@as(f64, 2.5), try qlin.get(f64, &.{}), 1e-12);
+    var qlo = try quantileWithOptions(arr, 0.5, .{ .method = .lower });
+    defer qlo.deinit();
+    try std.testing.expectEqual(@as(f64, 2.0), try qlo.get(f64, &.{}));
+    var qhi = try quantileWithOptions(arr, 0.5, .{ .method = .higher });
+    defer qhi.deinit();
+    try std.testing.expectEqual(@as(f64, 3.0), try qhi.get(f64, &.{}));
+    var qmid = try quantileWithOptions(arr, 0.5, .{ .method = .midpoint });
+    defer qmid.deinit();
+    try std.testing.expectEqual(@as(f64, 2.5), try qmid.get(f64, &.{}));
+    var qnear = try quantileWithOptions(arr, 0.5, .{ .method = .nearest });
+    defer qnear.deinit();
+    try std.testing.expectEqual(@as(f64, 3.0), try qnear.get(f64, &.{}));
+}
+
+test "stats min, max, and range" {
+    const allocator = std.testing.allocator;
+    const items = [_]f64{ 3.0, 1.0, 4.0, 1.0, 5.0, 9.0 };
+    var arr = try fromSlice(allocator, f64, .{ .data = &items, .shape = &.{6} });
+    defer arr.deinit();
+    var lo = try min(arr, .{});
+    defer lo.deinit();
+    try std.testing.expectEqual(@as(f64, 1.0), try lo.get(f64, &.{}));
+    var hi = try max(arr, .{});
+    defer hi.deinit();
+    try std.testing.expectEqual(@as(f64, 9.0), try hi.get(f64, &.{}));
+    var r = try range(arr, .{});
+    defer r.deinit();
+    try std.testing.expectEqual(@as(f64, 8.0), try r.get(f64, &.{}));
 }

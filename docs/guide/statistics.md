@@ -28,13 +28,21 @@ defer v.deinit();
 // Standard Deviation
 var sd = try num.stats.stdDev(data, .{ .ddof = 1 });
 defer sd.deinit();
+
+// Minimum, maximum, and peak-to-peak range
+var lo = try num.stats.min(data, .{});
+defer lo.deinit();
+var hi = try num.stats.max(data, .{});
+defer hi.deinit();
+var r = try num.stats.range(data, .{});
+defer r.deinit();
 ```
 
 ---
 
 ## 2. Percentiles and Quantiles
 
-Compute arbitrary percentiles using linear interpolation:
+Compute arbitrary percentiles using linear interpolation (default), with `lower`, `higher`, `midpoint`, and `nearest` methods available via `.method`:
 
 ```zig
 // 25th, 50th, and 75th percentiles (quartiles)

@@ -8,6 +8,9 @@ Module: `@import("num").stats`
 
 ```zig
 pub fn mean(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn min(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn max(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn range(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
 pub fn median(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
 pub fn variance(arr: Array, options: struct { axis: ?isize = null, ddof: usize = 0, keepDims: bool = false, dtype: ?DType = null }) !Array;
 pub fn stdDev(arr: Array, options: struct { axis: ?isize = null, ddof: usize = 0, keepDims: bool = false, dtype: ?DType = null }) !Array;
@@ -21,8 +24,9 @@ pub fn stdDev(arr: Array, options: struct { axis: ?isize = null, ddof: usize = 0
 
 ```zig
 pub fn quantile(arr: Array, q: f64) !Array;
-pub fn quantileWithOptions(arr: Array, q: f64, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
-pub fn percentile(arr: Array, q: f64, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
+pub fn quantileWithOptions(arr: Array, q: f64, options: struct { axis: ?isize = null, keepDims: bool = false, method: QuantileMethod = .linear }) !Array;
+pub fn percentile(arr: Array, q: f64, options: struct { axis: ?isize = null, keepDims: bool = false, method: QuantileMethod = .linear }) !Array;
+pub const QuantileMethod = enum { linear, lower, higher, midpoint, nearest };
 ```
 
 ---

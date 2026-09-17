@@ -22,6 +22,9 @@ pub fn kron(a: Array, b: Array, options: struct { dtype: ?DType = null }) !Array
 
 ```zig
 pub fn solve(a: Array, b: Array) !Array;
+pub fn solveTriangular(a: Array, b: Array, options: struct { lower: bool = true }) !Array;
+pub fn solveSpd(a: Array, b: Array) !Array;
+pub fn lstsq(a: Array, b: Array) !Array;
 pub fn inv(a: Array) !Array;
 pub fn pinv(a: Array, options: struct { rcond: f64 = 1e-15 }) !Array;
 pub fn matrixPower(a: Array, n: isize) !Array;

@@ -11,26 +11,27 @@ The `num.zig` repository includes complete, runnable examples demonstrating ever
 | `array_creation` | `examples/array_creation.zig` | Zeros, ones, full, arange, linspace, eye | `zig build run-array_creation` |
 | `elementwise` | `examples/elementwise.zig` | Arithmetic, trig, exponentials, masking | `zig build run-elementwise` |
 | `broadcasting` | `examples/broadcasting.zig` | Multidimensional broadcasting rules | `zig build run-broadcasting` |
+| `indexing` | `examples/indexing.zig` | Typed scalar access, assignment, views, take | `zig build run-indexing` |
 | `bitwise_ops` | `examples/bitwise_ops.zig` | Integer bitwise logic, shifts, bit counts | `zig build run-bitwise_ops` |
-| `complex_ops` | `examples/complex_ops.zig` | Complex conj, real/imag, magnitude, phase | `zig build run-complex_ops` |
+| `complex_ops` | `examples/complex_ops.zig` | Complex conj, real/imag, magnitude, phase, conjTranspose | `zig build run-complex_ops` |
 | `slicing` | `examples/slicing.zig` | Strided sub-array slices and views | `zig build run-slicing` |
 | `reshape` | `examples/reshape.zig` | Reshape, ravel, flatten, squeeze, expandDims | `zig build run-reshape` |
 | `transpose` | `examples/transpose.zig` | Transpose, swapAxes, moveAxis | `zig build run-transpose` |
-| `concatenation` | `examples/concatenation.zig` | Concat, stack, split, tile, repeat | `zig build run-concatenation` |
+| `concatenation` | `examples/concatenation.zig` | Concat, stack, split, tile, repeat, append, insert, delete | `zig build run-concatenation` |
 | `reductions` | `examples/reductions.zig` | Global and axis-wise reductions | `zig build run-reductions` |
 | `sorting` | `examples/sorting.zig` | In-place sort, sorted, argsort | `zig build run-sorting` |
 | `searching` | `examples/searching.zig` | searchSorted, unique, nonzero, set ops | `zig build run-searching` |
 | `random_generation` | `examples/random_generation.zig` | Uniform, normal, integers, shuffle | `zig build run-random_generation` |
 | `statistics` | `examples/statistics.zig` | Mean, median, variance, percentiles | `zig build run-statistics` |
 | `correlation` | `examples/correlation.zig` | Covariance, correlation, histogram | `zig build run-correlation` |
-| `matmul` | `examples/matmul.zig` | Matrix multiplication, dot, inner, outer | `zig build run-matmul` |
+| `matmul` | `examples/matmul.zig` | Matrix multiplication, dot, inner, outer, kron, batched | `zig build run-matmul` |
 | `norms` | `examples/norms.zig` | Vector and matrix norms | `zig build run-norms` |
-| `solve` | `examples/solve.zig` | Solvers, inverse, determinant | `zig build run-solve` |
+| `solve` | `examples/solve.zig` | Solvers, triangular/SPD/least-squares, inverse, determinant | `zig build run-solve` |
 | `decompositions` | `examples/decompositions.zig` | LU, QR, Cholesky | `zig build run-decompositions` |
 | `eigenvalues` | `examples/eigenvalues.zig` | Eigenvalues and eigenvectors | `zig build run-eigenvalues` |
 | `svd` | `examples/svd.zig` | Singular Value Decomposition | `zig build run-svd` |
-| `fft` | `examples/fft.zig` | FFT, IFFT, spectra | `zig build run-fft` |
-| `sparse_matrix` | `examples/sparse_matrix.zig` | CSR matrices and CG solver | `zig build run-sparse_matrix` |
+| `fft` | `examples/fft.zig` | FFT, IFFT, FFT2, spectra | `zig build run-fft` |
+| `sparse_matrix` | `examples/sparse_matrix.zig` | CSR/CSC matrices, transpose, CG solver | `zig build run-sparse_matrix` |
 | `polynomials` | `examples/polynomials.zig` | Evaluation, derivatives, fit, roots | `zig build run-polynomials` |
 | `serialization` | `examples/serialization.zig` | NZIG binary serialization | `zig build run-serialization` |
 | `text_io` | `examples/text_io.zig` | CSV text save/load | `zig build run-text_io` |

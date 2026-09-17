@@ -75,17 +75,17 @@
 | **Explicit Memory Discipline** | Clean allocator discipline with no hidden global allocations; zero-copy views for slicing, reshaping, transposing, flattening, and broadcasting. |
 | **Vectorized Math & SIMD** | Vectorized kernels for arithmetic (`add`, `subtract`/`sub`, `multiply`/`mul`, `divide`/`div`, `pow`/`power`, `remainder`/`mod`, `minimum`, `maximum`), unary math (`negate`/`negative`, `positive`, `abs`/`absolute`, `sqrt`, `square`, `reciprocal`, `sign`, `floor`/`ceil`/`trunc`/`round`), trigonometry (`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `hypot`), hyperbolics (`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`), exponentials/logarithms (`exp`, `exp2`, `expm1`, `log`, `log2`, `log10`, `log1p`), special functions (`gamma`, `lgamma`, `erf`, `erfc`, `cbrt`), clipping, and boolean conditionals (`where`). |
 | **Bitwise Integers (`num.ops`)** | Integer-only broadcast operations (`bitwiseAnd`, `bitwiseOr`, `bitwiseXor`, `bitwiseNot`, `leftShift`, `rightShift`) with population utilities (`bitCount`/`popcount`, `clz`/`leadingZeros`, `ctz`/`trailingZeros`); floating-point inputs are rejected. |
-| **Complex Helpers (`num.ops`)** | Complex construction via `c64`/`c128` dtypes with `conj`/`conjugate`, `real`, `imag`, `magnitude`, and `phase`; complex arithmetic, matrix operations, FFT, and statistics paths are covered. |
+| **Complex Helpers (`num.ops`)** | Complex construction via `c64`/`c128` dtypes with `conj`/`conjugate`, `real`, `imag`, `magnitude`, `phase`, and 2D conjugate transpose (`conjTranspose`); complex arithmetic, matrix operations, FFT, and statistics paths are covered. |
 | **Multidimensional Broadcasting** | Automatic broadcast semantics for binary operations following standard dimension-alignment rules, plus explicit zero-copy `broadcastTo` views. |
-| **Linear Algebra (`num.linalg`)** | Cache-blocked matrix multiplication (`matmul`), inner/outer products, vector and matrix norms (L1, L2, Linf, Frobenius), LU decomposition, QR decomposition (Householder reflections), Cholesky factorization, linear system solver (`solve`), matrix inverse (`inv`), determinant (`det`), matrix trace (`trace`), and rank (`matrixRank`). |
-| **Spectral & Decompositions** | General eigenvalue & eigenvector solver (`eig`, `eigvals`) via Hessenberg reduction and QR iteration, and Singular Value Decomposition (`svd`) via Golub-Kahan bidiagonalization. |
-| **Fast Fourier Transform (`num.fft`)** | 1D and multidimensional Fast Fourier Transform (`fft`, `ifft`) with Radix-2 Cooley-Tukey and direct DFT fallback, supporting complex inputs and backward/ortho/forward normalizations. |
-| **Sparse Matrices & Solvers (`num.sparse`)** | Compressed Sparse Row (`CsrMatrix`) and Compressed Sparse Column (`CscMatrix`) formats with memory-efficient storage, matrix-vector multiplication, dense roundtripping, and inline-configured iterative solvers: Conjugate Gradient (`cg`) and Restarted GMRES (`gmres`), e.g. `num.sparse.cg(A, b, .{ .tol = 1e-8, .maxIter = 1000 })`. |
+| **Linear Algebra (`num.linalg`)** | Cache-blocked matrix multiplication (`matmul`, batched over leading dimensions), inner/outer/Kronecker products, vector and matrix norms (L1, L2, Linf, Frobenius), LU decomposition, QR decomposition (Householder reflections), Cholesky factorization, linear system solver (`solve`) plus triangular (`solveTriangular`), SPD (`solveSpd`), and least-squares (`lstsq`) solvers, matrix inverse (`inv`), determinant (`det`), matrix trace (`trace`), and rank (`matrixRank`). |
+| **Spectral & Decompositions** | General eigenvalue & eigenvector solver (`eig`, `eigvals`) via Hessenberg reduction and QR iteration, and Singular Value Decomposition (`svd`) via Golub-Kahan bidiagonalization with full and economy (`full_matrices = false`) modes. |
+| **Fast Fourier Transform (`num.fft`)** | 1D (`fft`, `ifft`) and 2D (`fft2`, `ifft2`) Fast Fourier Transforms with Radix-2 Cooley-Tukey and direct DFT fallback, supporting complex inputs and backward/ortho/forward normalizations. |
+| **Sparse Matrices & Solvers (`num.sparse`)** | Compressed Sparse Row (`CsrMatrix`) and Compressed Sparse Column (`CscMatrix`) formats with memory-efficient storage, matrix-vector multiplication, transpose, dense roundtripping, and inline-configured iterative solvers: Conjugate Gradient (`cg`) and Restarted GMRES (`gmres`), e.g. `num.sparse.cg(A, b, .{ .tol = 1e-8, .maxIter = 1000 })`. |
 | **Parallel CPU Execution (`num.parallel`)** | Deterministic data-parallel engine (`run`) utilizing native Zig 0.16.0 `std.Thread` with automatic CPU core count detection, inline configuration (`.{ .workers, .chunkSize }`), and sequential fallback for small workloads. |
 | **Reductions (`num.reduce`)** | Reductions along global and specific axes with `keepDims` and negative axes: `sum`, `prod`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `all`, `any`, `countNonzero`, `cumsum`, `cumprod`, `cummin`, `cummax`, and `diff`. |
 | **Sorting & Searching (`num.sort`)** | In-place and copy quicksort, `argsort` permutation generation, binary search (`searchSorted`), distinct value extraction (`unique`), linear index filtering (`flatNonzero`, `nonzero`, `argwhere`), set operations (`intersect1d`, `union1d`, `setdiff1d`, `isin`), and coordinate utilities (`ravelIndex`, `unravelIndex`, `indices`). |
 | **Polynomial Calculus (`num.poly`)** | Horner's method evaluation (`poly.val`), least-squares polynomial curve fitting (`poly.fit`), polynomial derivatives (`poly.der`), indefinite integration (`poly.integ`), root finding (`poly.roots` with analytic linear/quadratic and Durand-Kerner general solver), and coefficient arithmetic (`poly.add`, `poly.sub`, `poly.mul`). |
-| **Descriptive Statistics (`num.stats`)** | Mean, variance, standard deviation, median, quantiles/percentiles (with linear, lower, higher, midpoint, and nearest interpolation), covariance matrices, Pearson correlation matrices, and histogram binning. |
+| **Descriptive Statistics (`num.stats`)** | Mean, min, max, range, variance, standard deviation, median, quantiles/percentiles (with linear, lower, higher, midpoint, and nearest interpolation), covariance matrices, Pearson correlation matrices, and histogram binning. |
 | **Random Number Distributions (`num.random`)** | Seedable pseudo-random engine (`Prng`), uniform float distributions, standard normal distribution (Box-Muller transform), discrete random integers, random choice sampling, and Fisher-Yates array shuffling. |
 | **Native NZIG v1.0 Serialization (`num.io`)** | Portable, deterministic, 64-byte aligned, 128-byte header binary file format independent of host compiler ABI, supporting 32-bit and 64-bit systems across Windows, Linux, and macOS. Also includes delimited text I/O (`savetxt`, `loadtxt`). |
 
@@ -358,35 +358,36 @@ pub fn main() !void {
 The `examples/` directory contains runnable examples demonstrating the full suite of `num.zig` capabilities:
 
 **Array Creation & Manipulation:**
-- [`array_creation`](examples/array_creation.zig) - Array creation routines (`zeros`, `ones`, `full`, `arange`, `linspace`, `eye`, `fromSlice`)
+- [`array_creation`](examples/array_creation.zig) - Array creation routines (`zeros`, `ones`, `full`, `scalar`, `arange`, `linspace`, `eye`, `fromSlice`)
 - [`slicing`](examples/slicing.zig) - Zero-copy strided multidimensional slicing
 - [`reshape`](examples/reshape.zig) - Reshape, ravel, flatten, squeeze, and expandDims
 - [`transpose`](examples/transpose.zig) - Zero-copy matrix transposition, axis swapping, and axis moving
-- [`concatenation`](examples/concatenation.zig) - Array concatenation, stacking, splitting, tiling, repeating, and padding
+- [`concatenation`](examples/concatenation.zig) - Array concatenation, stacking, splitting, tiling, repeating, appending, inserting, deleting, and padding
 
 **Vectorized Math & Operations:**
 - [`elementwise`](examples/elementwise.zig) - Vectorized arithmetic, trigonometric functions, exponentials, and boolean masking
 - [`broadcasting`](examples/broadcasting.zig) - Multidimensional broadcasting rules and explicit `broadcastTo`
+- [`indexing`](examples/indexing.zig) - Typed scalar access, assignment, views, and index selection
 - [`reductions`](examples/reductions.zig) - Global and axis-wise reductions (`sum`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `cumsum`)
 - [`bitwise_ops`](examples/bitwise_ops.zig) - Integer bitwise logic, shifts, and bit counts
-- [`complex_ops`](examples/complex_ops.zig) - Complex construction, conjugate, real/imaginary, magnitude, and phase
+- [`complex_ops`](examples/complex_ops.zig) - Complex construction, conjugate, real/imaginary, magnitude, phase, and conjugate transpose
 
 **Sorting, Searching & Statistics:**
 - [`sorting`](examples/sorting.zig) - In-place and copy quicksort, and `argsort` permutation indexing
-- [`searching`](examples/searching.zig) - Binary search (`searchSorted`), unique elements (`unique`), and nonzero indices (`flatNonzero`)
+- [`searching`](examples/searching.zig) - Binary search (`searchSorted`), unique elements (`unique`), nonzero indices (`flatNonzero`), and set operations
 - [`random_generation`](examples/random_generation.zig) - Uniform, normal, integer distributions, shuffling, and choice sampling
-- [`statistics`](examples/statistics.zig) - Descriptive statistics (`mean`, `median`, `variance`, `stdDev`, `percentile`)
+- [`statistics`](examples/statistics.zig) - Descriptive statistics (`mean`, `median`, `variance`, `stdDev`, `min`, `max`, `range`, `percentile`)
 - [`correlation`](examples/correlation.zig) - Covariance matrices, Pearson correlation, and histogram binning
 
 **Linear Algebra & Polynomials:**
-- [`matmul`](examples/matmul.zig) - Cache-friendly matrix multiplication, dot products, inner, and outer products
+- [`matmul`](examples/matmul.zig) - Cache-friendly matrix multiplication, dot products, inner, outer, Kronecker, and batched products
 - [`norms`](examples/norms.zig) - Vector norms (L1, L2, Linf) and matrix Frobenius norm
-- [`solve`](examples/solve.zig) - Linear system solvers (`Ax = b`), matrix inversion, and determinant computation
+- [`solve`](examples/solve.zig) - Linear system solvers (`solve`, triangular, SPD, least-squares), matrix inversion, and determinant computation
 - [`decompositions`](examples/decompositions.zig) - LU decomposition, QR decomposition (Householder), and Cholesky factorization
 - [`eigenvalues`](examples/eigenvalues.zig) - Eigenvalue and eigenvector computation for square matrices
-- [`svd`](examples/svd.zig) - General Singular Value Decomposition (U, S, Vt)
-- [`fft`](examples/fft.zig) - 1D Fast Fourier Transform and IFFT with complex spectra
-- [`sparse_matrix`](examples/sparse_matrix.zig) - Compressed Sparse Row (CSR) matrix creation, matvec multiplication, dense roundtripping, and Conjugate Gradient (`cg`) solver
+- [`svd`](examples/svd.zig) - General Singular Value Decomposition (U, S, Vt) with full and economy modes
+- [`fft`](examples/fft.zig) - 1D/2D Fast Fourier Transform and IFFT with complex spectra
+- [`sparse_matrix`](examples/sparse_matrix.zig) - CSR/CSC matrices, transpose, matvec multiplication, dense roundtripping, and Conjugate Gradient (`cg`) solver
 - [`polynomials`](examples/polynomials.zig) - Evaluation, derivatives, curve fitting, root finding, and coefficient arithmetic
 
 **Parallel CPU Execution:**
@@ -492,24 +493,31 @@ num.zig/
 │   │   ├── elementwise.zig          # Add, sub, mul, div, pow, trig, log, sqrt, where
 │   │   ├── compare.zig              # Equal, less, greater, logical operations
 │   │   ├── broadcast.zig            # Multidimensional broadcast rules and views
-│   │   └── reduce.zig               # Sum, prod, mean, min, max, argmin, argmax
+│   │   ├── reduce.zig               # Sum, prod, mean, median, variance, min, max, cumsum, diff
+│   │   ├── bitwise.zig              # Integer bitwise ops and bit counts
+│   │   └── complex.zig              # Complex conj, real/imag, magnitude, phase
 │   ├── manip/                       # Zero-copy and view transformations
 │   │   ├── reshape.zig              # Reshape, ravel, flatten, squeeze, expandDims
-│   │   ├── transpose.zig            # Transpose, swapAxes, moveAxis
+│   │   ├── transpose.zig            # Transpose, swapAxes, moveAxis, flip, roll
 │   │   ├── slice.zig                # Multi-axis slicing and sub-views
-│   │   ├── concat.zig               # Concat, stack, split, tile, repeat
-│   │   └── pad.zig                  # Constant, edge, and reflect padding
+│   │   ├── concat.zig               # Concat, stack, split, tile, repeat, append, insert, delete
+│   │   └── pad.zig                  # Constant padding
 │   ├── linalg/                      # Linear algebra routines
-│   │   ├── matmul.zig               # Tiled matmul, dot, inner, outer
+│   │   ├── matmul.zig               # Tiled matmul, dot, inner, outer, kron
 │   │   ├── norm.zig                 # Vector (L1, L2, Linf) and matrix Frobenius norms
 │   │   ├── decompose.zig            # LU, QR (Householder), Cholesky decompositions
-│   │   └── solve.zig                # Linear system solver, matrix inverse, determinant
+│   │   ├── solve.zig                # Solvers, inverse, determinant, rank, matrix power
+│   │   ├── eigen.zig                # Eigenvalues and eigenvectors
+│   │   ├── svd.zig                  # Singular Value Decomposition
+│   │   ├── fft.zig                  # FFT, IFFT, FFT2, frequency and shift helpers
+│   │   └── sparse_solve.zig         # CG and GMRES iterative solvers
 │   ├── poly/                        # Polynomial analysis
 │   │   ├── eval.zig                 # Horner evaluation (val), derivative (der), integral (integ)
-│   │   └── fit.zig                  # Least-squares polynomial fitting (fit)
+│   │   ├── fit.zig                  # Least-squares polynomial fitting (fit)
+│   │   └── roots.zig                # Root finding and coefficient arithmetic
 │   ├── sort/                        # Sorting and searching
 │   │   ├── ordering.zig             # Quicksort, sorted copy, and argsort
-│   │   └── search.zig               # Binary searchSorted, unique elements, flatNonzero
+│   │   └── search.zig               # Binary searchSorted, unique, set ops, index utilities
 │   ├── stats/                       # Statistical analysis
 │   │   ├── describe.zig             # Mean, median, variance, stdDev, quantiles
 │   │   └── correlate.zig            # Covariance, Pearson correlation, histogram
@@ -522,28 +530,31 @@ num.zig/
 │   │   └── stream.zig               # In-memory and file stream helpers
 │   └── strops/                      # String and terminal formatting
 │       └── format.zig               # Pretty-printing for multidimensional arrays
-├── examples/                        # 27 runnable standalone examples
+├── examples/                        # 34 runnable standalone examples
 │   ├── array_creation.zig           # Basic array generation routines
 │   ├── elementwise.zig              # SIMD arithmetic and mathematical functions
 │   ├── broadcasting.zig             # Automatic and manual dimension expansion
+│   ├── indexing.zig                 # Typed scalar access and index selection
+│   ├── bitwise_ops.zig              # Integer bitwise logic and bit counts
+│   ├── complex_ops.zig              # Complex helpers and conjugate transpose
 │   ├── slicing.zig                  # Strided slicing and views
 │   ├── reshape.zig                  # Structural transformations
 │   ├── transpose.zig                # Matrix transposition
-│   ├── concatenation.zig            # Combining and padding arrays
+│   ├── concatenation.zig            # Combining, padding, insert, delete arrays
 │   ├── reductions.zig               # Cumulative and axis reductions
 │   ├── sorting.zig                  # Ordering and permutation indexing
-│   ├── searching.zig                # Binary search and unique extraction
+│   ├── searching.zig                # Binary search, unique, and set operations
 │   ├── random_generation.zig        # Random sampling and distributions
 │   ├── statistics.zig               # Descriptive statistics and percentiles
 │   ├── correlation.zig              # Covariance and histograms
 │   ├── matmul.zig                   # High-performance matrix multiplication
 │   ├── norms.zig                    # Mathematical norms
-│   ├── solve.zig                    # Inverses and linear systems
+│   ├── solve.zig                    # Solvers, inverses, and linear systems
 │   ├── decompositions.zig           # Factorization algorithms
 │   ├── eigenvalues.zig              # Eigenvalues and eigenvectors
 │   ├── svd.zig                      # Singular Value Decomposition
 │   ├── fft.zig                      # Fast Fourier Transform
-│   ├── sparse_matrix.zig            # Compressed Sparse Row and solvers
+│   ├── sparse_matrix.zig            # Sparse matrices, transpose, and solvers
 │   ├── parallel_basic.zig           # Parallel CPU execution
 │   ├── parallel_config.zig          # Configured parallel execution
 │   ├── parallel_f32.zig             # Single-precision parallel arrays
@@ -552,6 +563,7 @@ num.zig/
 │   ├── parallel_non_contiguous.zig  # Parallel on strided views
 │   ├── parallel_reduction.zig       # Multi-threaded tree reduction
 │   ├── polynomials.zig              # Curve fitting and polynomial math
+│   ├── text_io.zig                  # Delimited text save and load
 │   └── serialization.zig            # NZIG binary file read and write
 ├── bench/
 │   └── benchmark.zig                # Performance benchmark suite

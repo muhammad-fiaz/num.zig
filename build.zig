@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) void {
         .{ .name = "array_creation", .path = "examples/array_creation.zig" },
         .{ .name = "elementwise", .path = "examples/elementwise.zig" },
         .{ .name = "broadcasting", .path = "examples/broadcasting.zig" },
+        .{ .name = "indexing", .path = "examples/indexing.zig" },
         .{ .name = "slicing", .path = "examples/slicing.zig" },
         .{ .name = "reshape", .path = "examples/reshape.zig" },
         .{ .name = "transpose", .path = "examples/transpose.zig" },

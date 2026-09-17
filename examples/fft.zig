@@ -40,4 +40,15 @@ pub fn main() !void {
     var freqs = try num.fft.fftfreq(allocator, 8, .{ .d = 0.1 });
     defer freqs.deinit();
     std.debug.print("FFT Frequencies [0]: {d:.2} Hz\n", .{try freqs.get(f64, &.{0})});
+
+    // 2D FFT over the last two axes
+    const img = [_]f64{ 1.0, 2.0, 3.0, 4.0 };
+    var m = try num.fromSlice(allocator, f64, .{ .data = &img, .shape = &.{ 2, 2 } });
+    defer m.deinit();
+    var f2 = try num.fft.fft2(m, .{});
+    defer f2.deinit();
+    var rt2 = try num.fft.ifft2(f2, .{});
+    defer rt2.deinit();
+    const back = try rt2.get(std.math.Complex(f64), &.{ 0, 0 });
+    std.debug.print("FFT2 roundtrip [0,0]: {d:.3}\n", .{back.re});
 }

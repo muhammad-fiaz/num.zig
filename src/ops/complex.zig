@@ -58,6 +58,17 @@ fn copyConj(comptime T: type, a: Array, out: Array) void {
 /// Alias for `conj`.
 pub const conjugate = conj;
 
+/// Conjugate transpose (Hermitian transpose) of a 2D complex array.
+/// Reuses the shared `transpose` view and `conj` kernel; returns new owned data.
+pub fn conjTranspose(a: Array) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    try requireComplex(a.dtype);
+    if (a.ndim != 2) return ShapeError.InvalidDimension;
+    const transpose = @import("../manip/transpose.zig").transpose;
+    var t = try transpose(a, .{});
+    defer t.deinit();
+    return conj(t);
+}
+
 const ComplexUnaryKind = enum { re, im, magnitude, phase };
 
 /// Single canonical complex-to-float traversal shared by real/imag/magnitude/phase.
@@ -205,4 +216,26 @@ test "complex rejects non-complex input" {
     defer a.deinit();
     try std.testing.expectError(DTypeError.UnsupportedDType, conj(a));
     try std.testing.expectError(DTypeError.UnsupportedDType, real(a));
+}
+
+test "complex conjugate transpose" {
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const allocator = std.testing.allocator;
+    const C128 = std.math.Complex(f64);
+    const vals = [_]C128{
+        C128.init(1.0, 1.0), C128.init(2.0, -1.0),
+        C128.init(3.0, 0.0), C128.init(4.0, 2.0),
+    };
+    var a = try fromSlice(allocator, C128, .{ .data = &vals, .shape = &.{ 2, 2 } });
+    defer a.deinit();
+    var h = try conjTranspose(a);
+    defer h.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, h.shapeSlice());
+    const s = try h.asSlice(C128);
+    try std.testing.expectEqual(@as(f64, 1.0), s[0].re);
+    try std.testing.expectEqual(@as(f64, -1.0), s[0].im);
+    try std.testing.expectEqual(@as(f64, 3.0), s[1].re);
+    try std.testing.expectEqual(@as(f64, 0.0), s[1].im);
+    try std.testing.expectEqual(@as(f64, 2.0), s[2].re);
+    try std.testing.expectEqual(@as(f64, 1.0), s[2].im);
 }

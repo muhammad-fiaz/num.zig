@@ -141,6 +141,13 @@ pub fn empty(
 ) !Array;
 ```
 
+### `scalar`
+Creates a 0D array holding a single constant value (reuses `full`):
+```zig
+// options.value is any scalar; options.dtype is optional
+pub fn scalar(allocator: std.mem.Allocator, options: anytype) !Array;
+```
+
 ### `arange`
 Generates half-open range `[start, stop)`:
 ```zig

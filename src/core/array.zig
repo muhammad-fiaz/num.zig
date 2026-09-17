@@ -649,6 +649,25 @@ pub fn full(
     return arr;
 }
 
+/// Creates a 0D scalar array holding a single constant value.
+/// Reuses the shared `full` kernel with an empty shape.
+pub fn scalar(
+    allocator: std.mem.Allocator,
+    options: anytype,
+) (ShapeError || std.mem.Allocator.Error)!Array {
+    if (@hasField(@TypeOf(options), "dtype")) {
+        return full(allocator, .{
+            .shape = &.{},
+            .value = options.value,
+            .dtype = options.dtype,
+        });
+    }
+    return full(allocator, .{
+        .shape = &.{},
+        .value = options.value,
+    });
+}
+
 /// Creates a 1D array with values evenly spaced within a half-open interval [start, stop).
 pub fn arange(
     allocator: std.mem.Allocator,

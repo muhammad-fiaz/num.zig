@@ -8,10 +8,16 @@ Module: `@import("num").fft`
 
 Both `fft` and `ifft` operate along a specified axis and support complex and real inputs.
 Real inputs are automatically promoted to the appropriate complex dtype (`c64` for `f32`, `c128` for `f64`).
+`fft2`/`ifft2` apply the shared 1D kernel over the last two axes of rank-2+ arrays.
 
 ```zig
-pub fn fft(a: Array, options: struct { axis: isize = -1, norm: enum { backward, ortho, forward } = .backward }) !Array;
-pub fn ifft(a: Array, options: struct { axis: isize = -1, norm: enum { backward, ortho, forward } = .backward }) !Array;
+pub const Norm = enum { backward, ortho, forward };
+
+```zig
+pub fn fft(a: Array, options: struct { axis: isize = -1, norm: Norm = .backward }) !Array;
+pub fn ifft(a: Array, options: struct { axis: isize = -1, norm: Norm = .backward }) !Array;
+pub fn fft2(a: Array, options: struct { norm: Norm = .backward }) !Array;
+pub fn ifft2(a: Array, options: struct { norm: Norm = .backward }) !Array;
 ```
 
 ---

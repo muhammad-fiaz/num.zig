@@ -109,6 +109,15 @@ pub fn split(
     arr: Array,
     options: struct { parts: usize, axis: isize = 0 },
 ) ![]Array;
+
+/// Append values to an array (flattened when axis is null, else along the axis).
+pub fn append(arr: Array, values: Array, options: struct { axis: ?isize = null }) !Array;
+
+/// Insert values at an index along an axis (flattened when axis is null).
+pub fn insert(arr: Array, index: usize, values: Array, options: struct { axis: ?isize = null }) !Array;
+
+/// Delete the entry at an index along an axis (flattened when axis is null).
+pub fn delete(arr: Array, index: usize, options: struct { axis: ?isize = null }) !Array;
 ```
 
 ---

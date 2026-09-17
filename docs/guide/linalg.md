@@ -42,6 +42,22 @@ var x = try num.linalg.solve(A, b);
 defer x.deinit();
 ```
 
+### `solveTriangular`, `solveSpd`, `lstsq`
+Specialized solvers reusing the shared LU/Cholesky kernels:
+```zig
+// Triangular system (no decomposition)
+var xt = try num.linalg.solveTriangular(L, b, .{ .lower = true });
+defer xt.deinit();
+
+// Symmetric positive-definite system via Cholesky
+var xs = try num.linalg.solveSpd(A_spd, b);
+defer xs.deinit();
+
+// Overdetermined least-squares via normal equations
+var xls = try num.linalg.lstsq(A_rect, b);
+defer xls.deinit();
+```
+
 ### `inv` & `pinv`
 Computes the matrix inverse $A^{-1}$ or Moore-Penrose pseudo-inverse:
 ```zig

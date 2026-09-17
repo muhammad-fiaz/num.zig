@@ -33,4 +33,16 @@ pub fn main() !void {
     var sum = try num.ops.add(a, a, .{});
     defer sum.deinit();
     std.debug.print("z+z dtype={s} re[0]={d:.1}\n", .{ @tagName(sum.dtype), (try sum.asSlice(C128))[0].re });
+
+    // Conjugate transpose of a 2x2 complex matrix.
+    const mvals = [_]C128{
+        C128.init(1.0, 1.0), C128.init(2.0, 0.0),
+        C128.init(0.0, 3.0), C128.init(4.0, -1.0),
+    };
+    var m = try num.fromSlice(allocator, C128, .{ .data = &mvals, .shape = &.{ 2, 2 } });
+    defer m.deinit();
+    var h = try num.ops.conjTranspose(m);
+    defer h.deinit();
+    const h00 = try h.get(C128, &.{ 0, 0 });
+    std.debug.print("conjTranspose[0,0] = {d:.1}+{d:.1}i\n", .{ h00.re, h00.im });
 }
