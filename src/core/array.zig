@@ -204,8 +204,9 @@ pub const Array = struct {
     }
 
     /// Gets a scalar value of type T at the specified multidimensional indices.
+    /// Returns `IndexError.DTypeMismatch` when T does not match the array dtype.
     pub fn get(self: Array, comptime T: type, indices: []const usize) IndexError!T {
-        std.debug.assert(DType.fromType(T) == self.dtype);
+        if (DType.fromType(T) != self.dtype) return IndexError.DTypeMismatch;
         const offset = try self.elementOffset(indices);
         const ptr: [*]const T = @ptrCast(@alignCast(self.data_ptr));
         const final_ptr = if (offset >= 0)
@@ -231,8 +232,10 @@ pub const Array = struct {
     }
 
     /// Sets a scalar value of type T at the specified multidimensional indices.
+    /// Returns `IndexError.DTypeMismatch` when T does not match the array dtype.
+    /// Works on any strided view (contiguous, sliced, or transposed).
     pub fn set(self: Array, comptime T: type, indices: []const usize, value: T) IndexError!void {
-        std.debug.assert(DType.fromType(T) == self.dtype);
+        if (DType.fromType(T) != self.dtype) return IndexError.DTypeMismatch;
         const offset = try self.elementOffset(indices);
         const ptr: [*]T = @ptrCast(@alignCast(self.data_ptr));
         const final_ptr = if (offset >= 0)
@@ -1208,6 +1211,35 @@ test "scalar item and type-agnostic get/set accessors" {
     try std.testing.expectEqual(@as(i64, 3), try sc.itemAsInt());
 }
 
+test "typed scalar access verifies dtype compatibility" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var arr = try fromSlice(allocator, f32, .{ .data = &data, .shape = &.{ 2, 2 } });
+    defer arr.deinit();
+
+    // Matching types succeed across ranks and dtypes
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), try arr.get(f32, &.{ 1, 1 }), 1e-6);
+    try arr.set(f32, &.{ 0, 0 }, 9.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), try arr.get(f32, &.{ 0, 0 }), 1e-6);
+
+    // Mismatched Zig scalar types are rejected, never reinterpreted
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.get(f64, &.{ 0, 0 }));
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.get(i32, &.{ 0, 0 }));
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.set(f64, &.{ 0, 0 }, 1.0));
+
+    // Bounds and rank are still validated
+    try std.testing.expectError(IndexError.IndexOutOfBounds, arr.get(f32, &.{ 2, 0 }));
+    try std.testing.expectError(IndexError.RankMismatch, arr.get(f32, &.{0}));
+
+    // Mutation through a transposed view lands in shared storage
+    const transpose = @import("../manip/transpose.zig").transpose;
+    var tv = try transpose(arr, .{});
+    defer tv.deinit();
+    try tv.set(f32, &.{ 1, 0 }, 7.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 7.0), try arr.get(f32, &.{ 0, 1 }), 1e-6);
+}
+
 test "geomspace, triu, and tril" {
     const allocator = std.testing.allocator;
 
@@ -1285,4 +1317,53 @@ test "take, put, and fill methods" {
     try std.testing.expectEqual(@as(f64, 42.0), try arr.getItem(f64, &.{0}));
     try arr.setItem(f64, 100.0);
     try std.testing.expectEqual(@as(f64, 100.0), try arr.getItem(f64, &.{0}));
+}
+
+test "rank coverage, strides, and strided assignment" {
+    const allocator = std.testing.allocator;
+
+    // Rank 3 and rank 4 metadata, element counts, and byte sizes
+    var r3 = try zeros(allocator, .{ .shape = &.{ 2, 3, 4 }, .dtype = .f32 });
+    defer r3.deinit();
+    try std.testing.expectEqual(@as(u8, 3), r3.ndim);
+    try std.testing.expectEqual(@as(usize, 24), r3.elementCount());
+    try std.testing.expectEqual(@as(usize, 96), r3.byteCount());
+    try std.testing.expect(r3.isContiguous());
+
+    var r4 = try ones(allocator, .{ .shape = &.{ 2, 2, 2, 2 }, .dtype = .i16 });
+    defer r4.deinit();
+    try std.testing.expectEqual(@as(u8, 4), r4.ndim);
+    try std.testing.expectEqual(@as(usize, 16), r4.elementCount());
+
+    // Maximum supported rank carries metadata without heap shape storage
+    var max_shape: [MAX_RANK]usize = [_]usize{1} ** MAX_RANK;
+    max_shape[0] = 2;
+    var rmax = try zeros(allocator, .{ .shape = max_shape[0..], .dtype = .u8 });
+    defer rmax.deinit();
+    try std.testing.expectEqual(@as(u8, MAX_RANK), rmax.ndim);
+    try std.testing.expectEqual(@as(usize, 2), rmax.elementCount());
+
+    // Rank beyond the limit is rejected explicitly
+    var too_many: [MAX_RANK + 1]usize = [_]usize{1} ** (MAX_RANK + 1);
+    try std.testing.expectError(ShapeError.RankExceeded, zeros(allocator, .{ .shape = too_many[0..], .dtype = .f64 }));
+
+    // Stepped slice assignment lands at strided offsets
+    const v_data = [_]f64{ 0, 1, 2, 3, 4, 5 };
+    var v = try fromSlice(allocator, f64, .{ .data = &v_data, .shape = &.{6} });
+    defer v.deinit();
+    const slice_fn = @import("../manip/slice.zig").slice;
+    var stepped = try slice_fn(v, &.{.{ .start = 0, .stop = 6, .step = 2 }});
+    defer stepped.deinit();
+    try std.testing.expect(!stepped.isContiguous());
+    try stepped.set(f64, &.{1}, 99.0);
+    try std.testing.expectEqual(@as(f64, 99.0), try v.get(f64, &.{2}));
+
+    // Sliced-view fill and clone roundtrip preserve values
+    var sub = try slice_fn(v, &.{.{ .start = 1, .stop = 4, .step = 1 }});
+    defer sub.deinit();
+    var sub_copy = try sub.clone();
+    defer sub_copy.deinit();
+    try std.testing.expect(sub_copy.isContiguous());
+    try std.testing.expectEqualSlices(usize, &.{3}, sub_copy.shapeSlice());
+    try std.testing.expectEqual(@as(f64, 99.0), try sub_copy.get(f64, &.{1}));
 }

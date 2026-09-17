@@ -28,8 +28,8 @@ pub const Array = struct {
     pub fn elementCount(self: Array) usize;
     pub fn byteCount(self: Array) usize;
     pub fn isContiguous(self: Array) bool;
-    pub fn get(self: Array, comptime T: type, indices: []const usize) !T; // e.g. get(f32, &.{0})
-    pub fn set(self: Array, comptime T: type, indices: []const usize, value: T) !void;
+    pub fn get(self: Array, comptime T: type, indices: []const usize) !T; // e.g. get(f32, &.{0}); DTypeMismatch on wrong T
+    pub fn set(self: Array, comptime T: type, indices: []const usize, value: T) !void; // works on strided views
     pub fn item(self: Array, comptime T: type) !T;
     pub fn getAsFloat(self: Array, indices: []const usize) !f64;
     pub fn setFromFloat(self: Array, indices: []const usize, val: f64) !void;

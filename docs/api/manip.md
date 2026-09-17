@@ -103,6 +103,12 @@ pub fn concat(arrays: []const Array, options: struct { axis: isize = 0 }) !Array
 /// Stack arrays along a new axis.
 pub fn stack(arrays: []const Array, options: struct { axis: isize = 0 }) !Array;
 
+/// Stack 1D arrays in sequence (axis 0) or join higher-rank arrays along axis 1.
+pub fn hstack(arrays: []const Array) !Array;
+
+/// Promote 1D inputs to rows with `atleast2d` and join along axis 0.
+pub fn vstack(arrays: []const Array) !Array;
+
 /// Split an array into equal parts along an axis.
 pub fn split(
     allocator: std.mem.Allocator,
@@ -131,7 +137,8 @@ pub fn tile(arr: Array, options: struct { reps: []const usize }) !Array;
 /// Repeat elements of an array.
 pub fn repeat(arr: Array, options: struct { repeats: usize, axis: ?isize = null }) !Array;
 
-/// Pad array with a constant value. `pad_width[i] = [before, after]` per axis.
+/// Pad array per `pad_width[i] = [before, after]` with `mode` (.constant, .edge, .reflect).
 pub fn pad(arr: Array, options: anytype) !Array;
+pub const PadMode = enum { constant, edge, reflect };
 ```
 

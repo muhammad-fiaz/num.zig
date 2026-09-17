@@ -629,4 +629,16 @@ test "triangular, SPD, and least-squares solvers" {
     for (0..3) |i| {
         try std.testing.expectApproxEqAbs(y_data[i], try pred.get(f64, &.{i}), 1e-6);
     }
+
+    // f32 dtype is preserved end to end
+    const f32_a = [_]f32{ 2, 0, 1, 3 };
+    var fa = try fromSlice(allocator, f32, .{ .data = &f32_a, .shape = &.{ 2, 2 } });
+    defer fa.deinit();
+    const f32_b = [_]f32{ 4, 7 };
+    var fb = try fromSlice(allocator, f32, .{ .data = &f32_b, .shape = &.{2} });
+    defer fb.deinit();
+    var fx = try solveTriangular(fa, fb, .{ .lower = true });
+    defer fx.deinit();
+    try std.testing.expect(fx.dtype == .f32);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), try fx.get(f32, &.{0}), 1e-5);
 }

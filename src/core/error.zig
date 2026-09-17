@@ -45,6 +45,8 @@ pub const IndexError = error{
     RankMismatch,
     /// Boolean mask shape does not match target array shape.
     MaskShapeMismatch,
+    /// Requested Zig scalar type does not match the array dtype.
+    DTypeMismatch,
 };
 
 /// Errors that arise during linear algebra operations.

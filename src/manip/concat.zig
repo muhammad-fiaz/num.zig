@@ -105,6 +105,32 @@ pub fn stack(
     return concat(expanded, .{ .axis = options.axis });
 }
 
+/// Stacks arrays horizontally: 1D arrays join along axis 0, while
+/// higher-rank arrays join along axis 1. Thin wrapper over `concat`.
+pub fn hstack(arrays: []const Array) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arrays.len == 0) return ShapeError.EmptyArray;
+    const axis: isize = if (arrays[0].ndim <= 1) 0 else 1;
+    return concat(arrays, .{ .axis = axis });
+}
+
+/// Stacks arrays vertically: 1D inputs are promoted with `atleast2d` and
+/// joined along axis 0. Thin wrapper over `concat`.
+pub fn vstack(arrays: []const Array) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arrays.len == 0) return ShapeError.EmptyArray;
+    const atleast2d = @import("reshape.zig").atleast2d;
+    const first = arrays[0];
+    var promoted = try first.allocator.alloc(Array, arrays.len);
+    defer first.allocator.free(promoted);
+    var count: usize = 0;
+    errdefer for (promoted[0..count]) |*p| p.deinit();
+    for (arrays) |arr| {
+        promoted[count] = try atleast2d(arr);
+        count += 1;
+    }
+    defer for (promoted[0..count]) |*p| p.deinit();
+    return concat(promoted, .{ .axis = 0 });
+}
+
 /// Splits an array into multiple sub-arrays along an axis.
 pub fn split(
     allocator: std.mem.Allocator,
@@ -511,4 +537,36 @@ test "append, insert, and delete" {
     defer droprow.deinit();
     try std.testing.expectEqualSlices(usize, &.{ 1, 2 }, droprow.shapeSlice());
     try std.testing.expectEqualSlices(f64, &.{ 3, 4 }, try droprow.asSlice(f64));
+}
+
+test "hstack and vstack" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+
+    const d1 = [_]f64{ 1, 2 };
+    var a = try fromSlice(allocator, f64, .{ .data = &d1, .shape = &.{2} });
+    defer a.deinit();
+    const d2 = [_]f64{ 3, 4 };
+    var b = try fromSlice(allocator, f64, .{ .data = &d2, .shape = &.{2} });
+    defer b.deinit();
+
+    // 1D hstack joins along axis 0 -> [1, 2, 3, 4]
+    var h1 = try hstack(&.{ a, b });
+    defer h1.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 1, 2, 3, 4 }, try h1.asSlice(f64));
+
+    // 1D vstack promotes to rows -> [[1, 2], [3, 4]]
+    var v1 = try vstack(&.{ a, b });
+    defer v1.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, v1.shapeSlice());
+    try std.testing.expectEqualSlices(f64, &.{ 1, 2, 3, 4 }, try v1.asSlice(f64));
+
+    // 2D hstack joins along axis 1
+    var m1 = try fromSlice(allocator, f64, .{ .data = &d1, .shape = &.{ 1, 2 } });
+    defer m1.deinit();
+    var m2 = try fromSlice(allocator, f64, .{ .data = &d2, .shape = &.{ 1, 2 } });
+    defer m2.deinit();
+    var h2 = try hstack(&.{ m1, m2 });
+    defer h2.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 1, 4 }, h2.shapeSlice());
 }

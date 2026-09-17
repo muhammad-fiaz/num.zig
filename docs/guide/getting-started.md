@@ -28,7 +28,7 @@ pub fn main() !void {
     var a = try num.arange(allocator, .{ .start = 0, .stop = 6, .dtype = .f64 });
     defer a.deinit();
 
-    var a_2x3 = try a.reshape(.{ .shape = &.{ 2, 3 } });
+    var a_2x3 = try num.manip.reshape(a, .{ .shape = &.{ 2, 3 } });
     defer a_2x3.deinit();
 
     // 2. Create another 2x3 matrix of ones

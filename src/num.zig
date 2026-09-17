@@ -84,6 +84,8 @@ pub const manip = struct {
     pub const slice = @import("manip/slice.zig").slice;
     pub const concat = @import("manip/concat.zig").concat;
     pub const stack = @import("manip/concat.zig").stack;
+    pub const hstack = @import("manip/concat.zig").hstack;
+    pub const vstack = @import("manip/concat.zig").vstack;
     pub const split = @import("manip/concat.zig").split;
     pub const append = @import("manip/concat.zig").append;
     pub const insert = @import("manip/concat.zig").insert;
@@ -91,11 +93,13 @@ pub const manip = struct {
     pub const tile = @import("manip/concat.zig").tile;
     pub const repeat = @import("manip/concat.zig").repeat;
     pub const pad = @import("manip/pad.zig").pad;
+    pub const PadMode = @import("manip/pad.zig").PadMode;
 };
 
 pub const broadcast = struct {
     pub const broadcastTo = @import("ops/broadcast.zig").broadcastTo;
     pub const broadcast2 = @import("ops/broadcast.zig").broadcast2;
+    pub const broadcastShapes = @import("core/shape.zig").broadcastShapes;
 };
 
 pub const ops = struct {
