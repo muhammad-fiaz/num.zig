@@ -20,7 +20,7 @@ pub const SortOrder = enum {
     desc,
 };
 
-pub const SortOptions = struct {
+const SortOptions = struct {
     axis: ?isize = -1,
     order: SortOrder = .asc,
     stable: bool = false,
@@ -145,7 +145,7 @@ pub fn sorted(
     return out;
 }
 
-pub const ArgsortOptions = struct {
+const ArgsortOptions = struct {
     axis: isize = -1,
     order: SortOrder = .asc,
     stable: bool = false,

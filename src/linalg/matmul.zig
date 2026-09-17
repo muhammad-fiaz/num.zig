@@ -36,7 +36,7 @@ inline fn addT(comptime T: type, a: T, b: T) T {
     return a + b;
 }
 
-pub const MatmulOptions = struct {
+const MatmulOptions = struct {
     dtype: ?DType = null,
 };
 
@@ -440,6 +440,7 @@ fn computeBatchedMatmul(a: Array, b: Array, out_dtype: DType) !Array {
 pub fn kron(
     a: Array,
     b: Array,
+    options: MatmulOptions,
 ) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
     if (a.ndim != 2 or b.ndim != 2) return ShapeError.InvalidDimension;
 
@@ -450,7 +451,7 @@ pub fn kron(
 
     const out_rows = a_rows * b_rows;
     const out_cols = a_cols * b_cols;
-    const out_dtype = DType.promote(a.dtype, b.dtype);
+    const out_dtype = options.dtype orelse DType.promote(a.dtype, b.dtype);
 
     var out = try empty(a.allocator, .{
         .shape = &.{ out_rows, out_cols },
@@ -523,7 +524,7 @@ test "1D dot and 2D matmul" {
     var k_b = try fromSlice(allocator, f64, .{ .data = &k_b_data, .shape = &.{ 2, 2 } });
     defer k_b.deinit();
 
-    var k_res = try kron(k_a, k_b);
+    var k_res = try kron(k_a, k_b, .{});
     defer k_res.deinit();
 
     try std.testing.expectEqualSlices(usize, &.{ 4, 4 }, k_res.shapeSlice());
@@ -531,4 +532,9 @@ test "1D dot and 2D matmul" {
     try std.testing.expectEqual(@as(f64, 5.0), try k_res.get(f64, &.{ 0, 1 }));
     try std.testing.expectEqual(@as(f64, 10.0), try k_res.get(f64, &.{ 0, 3 }));
     try std.testing.expectEqual(@as(f64, 28.0), try k_res.get(f64, &.{ 3, 3 }));
+
+    // kron dtype override is honored
+    var k32 = try kron(k_a, k_b, .{ .dtype = .f32 });
+    defer k32.deinit();
+    try std.testing.expect(k32.dtype == .f32);
 }

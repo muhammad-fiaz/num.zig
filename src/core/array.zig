@@ -104,14 +104,15 @@ pub const Array = struct {
     }
 
     /// Duplicates the array into a newly allocated, contiguous owned copy.
+    /// This is the canonical deep-copy operation (returns owned data).
     pub fn clone(self: Array) (ShapeError || std.mem.Allocator.Error)!Array {
-        var copy = try zeros(self.allocator, .{
+        var dup = try zeros(self.allocator, .{
             .shape = self.shapeSlice(),
             .dtype = self.dtype,
         });
 
         if (self.isContiguous()) {
-            @memcpy(copy.data_ptr[0..self.byteCount()], self.data_ptr[0..self.byteCount()]);
+            @memcpy(dup.data_ptr[0..self.byteCount()], self.data_ptr[0..self.byteCount()]);
         } else {
             const NdIterator = @import("iterator.zig").NdIterator;
             var it = NdIterator.init(self.shape(), self.strides());
@@ -120,13 +121,59 @@ pub const Array = struct {
 
             while (it.next()) |it_item| {
                 const src_ptr = self.data_ptr + @as(usize, @intCast(@as(isize, @intCast(0)) + it_item.offset)) * elem_sz;
-                const dst_ptr = copy.data_ptr + out_offset * elem_sz;
+                const dst_ptr = dup.data_ptr + out_offset * elem_sz;
                 @memcpy(dst_ptr[0..elem_sz], src_ptr[0..elem_sz]);
                 out_offset += 1;
             }
         }
 
-        return copy;
+        return dup;
+    }
+
+    /// Alias for `clone`: explicit deep copy returning new owned contiguous data.
+    pub const copy = clone;
+
+    /// Returns an owned C-contiguous copy. If already contiguous this is
+    /// equivalent to `clone`; otherwise strided data is linearized.
+    /// The caller owns the result and must call `deinit`.
+    pub fn asContiguous(self: Array) (ShapeError || std.mem.Allocator.Error)!Array {
+        return self.clone();
+    }
+
+    /// Casts to `target` dtype, returning a new owned contiguous array.
+    /// Uses the centralized `DType.castValue` conversion (no f64 bottleneck,
+    /// preserving integer precision). Complex sources convert via their real
+    /// component handling in `castValue`; complex targets receive converted
+    /// real and imaginary parts.
+    pub fn astype(self: Array, target: DType) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+        var out = try zeros(self.allocator, .{ .shape = self.shapeSlice(), .dtype = target });
+        errdefer out.deinit();
+        const NdIterator = @import("iterator.zig").NdIterator;
+        var it = NdIterator.init(self.shape(), self.strides());
+        var out_it = NdIterator.init(out.shape(), out.strides());
+        while (it.next()) |entry| {
+            const o = out_it.next().?;
+            inline for (std.meta.fields(DType)) |tfield| {
+                const ttag: DType = @enumFromInt(tfield.value);
+                if (target == ttag) {
+                    const T = ttag.toType();
+                    const optr: [*]T = @ptrCast(@alignCast(out.data_ptr));
+                    const dst_idx: usize = @intCast(o.offset);
+                    inline for (std.meta.fields(DType)) |sfield| {
+                        const stag: DType = @enumFromInt(sfield.value);
+                        if (self.dtype == stag) {
+                            const S = stag.toType();
+                            const sptr: [*]const S = @ptrCast(@alignCast(self.data_ptr));
+                            const sval = sptr[@as(usize, @intCast(entry.offset))];
+                            optr[dst_idx] = DType.castValue(T, S, sval);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return out;
     }
 
     /// Returns a typed slice over the array data, failing if the array is not contiguous.
@@ -157,8 +204,9 @@ pub const Array = struct {
     }
 
     /// Gets a scalar value of type T at the specified multidimensional indices.
+    /// Returns `IndexError.DTypeMismatch` when T does not match the array dtype.
     pub fn get(self: Array, comptime T: type, indices: []const usize) IndexError!T {
-        std.debug.assert(DType.fromType(T) == self.dtype);
+        if (DType.fromType(T) != self.dtype) return IndexError.DTypeMismatch;
         const offset = try self.elementOffset(indices);
         const ptr: [*]const T = @ptrCast(@alignCast(self.data_ptr));
         const final_ptr = if (offset >= 0)
@@ -184,8 +232,10 @@ pub const Array = struct {
     }
 
     /// Sets a scalar value of type T at the specified multidimensional indices.
+    /// Returns `IndexError.DTypeMismatch` when T does not match the array dtype.
+    /// Works on any strided view (contiguous, sliced, or transposed).
     pub fn set(self: Array, comptime T: type, indices: []const usize, value: T) IndexError!void {
-        std.debug.assert(DType.fromType(T) == self.dtype);
+        if (DType.fromType(T) != self.dtype) return IndexError.DTypeMismatch;
         const offset = try self.elementOffset(indices);
         const ptr: [*]T = @ptrCast(@alignCast(self.data_ptr));
         const final_ptr = if (offset >= 0)
@@ -457,32 +507,7 @@ pub const Array = struct {
             const tag: DType = @enumFromInt(field.value);
             if (self.dtype == tag) {
                 const DstT = tag.toType();
-                const cast_val: DstT = switch (@typeInfo(DstT)) {
-                    .int => switch (@typeInfo(T)) {
-                        .int, .comptime_int => @as(DstT, @intCast(val)),
-                        .float, .comptime_float => @as(DstT, @intFromFloat(val)),
-                        .bool => @as(DstT, if (val) 1 else 0),
-                        else => 0,
-                    },
-                    .float => switch (@typeInfo(T)) {
-                        .int, .comptime_int => @as(DstT, @floatFromInt(val)),
-                        .float, .comptime_float => @as(DstT, @floatCast(val)),
-                        .bool => @as(DstT, if (val) 1.0 else 0.0),
-                        else => 0.0,
-                    },
-                    .bool => switch (@typeInfo(T)) {
-                        .bool => val,
-                        .int, .comptime_int => val != 0,
-                        .float, .comptime_float => val != 0.0,
-                        else => false,
-                    },
-                    .@"struct" => switch (@typeInfo(T)) {
-                        .float, .comptime_float => .{ .re = @floatCast(val), .im = 0.0 },
-                        .int, .comptime_int => .{ .re = @floatFromInt(val), .im = 0.0 },
-                        else => .{ .re = 0.0, .im = 0.0 },
-                    },
-                    else => 0,
-                };
+                const cast_val: DstT = DType.castValue(DstT, T, val);
 
                 if (self.flags.isCContiguous) {
                     const ptr: [*]DstT = @ptrCast(@alignCast(self.data_ptr));
@@ -618,34 +643,32 @@ pub fn full(
         if (arr.dtype == tag) {
             const T = tag.toType();
             const slice = arr.asSlice(T) catch unreachable;
-            const cast_val: T = switch (@typeInfo(T)) {
-                .int => switch (@typeInfo(ValType)) {
-                    .int, .comptime_int => @as(T, @intCast(options.value)),
-                    .float, .comptime_float => @as(T, @intFromFloat(options.value)),
-                    .bool => @as(T, if (options.value) 1 else 0),
-                    else => @as(T, 0),
-                },
-                .float => switch (@typeInfo(ValType)) {
-                    .int, .comptime_int => @as(T, @floatFromInt(options.value)),
-                    .float, .comptime_float => @as(T, @floatCast(options.value)),
-                    .bool => @as(T, if (options.value) 1.0 else 0.0),
-                    else => @as(T, 0.0),
-                },
-                .bool => if (options.value != 0) true else false,
-                .@"struct" => switch (@typeInfo(ValType)) {
-                    .@"struct" => .{ .re = @floatCast(options.value.re), .im = @floatCast(options.value.im) },
-                    .int, .comptime_int => .{ .re = @floatFromInt(options.value), .im = 0.0 },
-                    .float, .comptime_float => .{ .re = @floatCast(options.value), .im = 0.0 },
-                    else => .{ .re = 0.0, .im = 0.0 },
-                },
-                else => unreachable,
-            };
+            const cast_val: T = DType.castValue(T, ValType, options.value);
             @memset(slice, cast_val);
             return arr;
         }
     }
 
     return arr;
+}
+
+/// Creates a 0D scalar array holding a single constant value.
+/// Reuses the shared `full` kernel with an empty shape.
+pub fn scalar(
+    allocator: std.mem.Allocator,
+    options: anytype,
+) (ShapeError || std.mem.Allocator.Error)!Array {
+    if (@hasField(@TypeOf(options), "dtype")) {
+        return full(allocator, .{
+            .shape = &.{},
+            .value = options.value,
+            .dtype = options.dtype,
+        });
+    }
+    return full(allocator, .{
+        .shape = &.{},
+        .value = options.value,
+    });
 }
 
 /// Creates a 1D array with values evenly spaced within a half-open interval [start, stop).
@@ -1188,6 +1211,35 @@ test "scalar item and type-agnostic get/set accessors" {
     try std.testing.expectEqual(@as(i64, 3), try sc.itemAsInt());
 }
 
+test "typed scalar access verifies dtype compatibility" {
+    const allocator = std.testing.allocator;
+
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var arr = try fromSlice(allocator, f32, .{ .data = &data, .shape = &.{ 2, 2 } });
+    defer arr.deinit();
+
+    // Matching types succeed across ranks and dtypes
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), try arr.get(f32, &.{ 1, 1 }), 1e-6);
+    try arr.set(f32, &.{ 0, 0 }, 9.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), try arr.get(f32, &.{ 0, 0 }), 1e-6);
+
+    // Mismatched Zig scalar types are rejected, never reinterpreted
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.get(f64, &.{ 0, 0 }));
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.get(i32, &.{ 0, 0 }));
+    try std.testing.expectError(IndexError.DTypeMismatch, arr.set(f64, &.{ 0, 0 }, 1.0));
+
+    // Bounds and rank are still validated
+    try std.testing.expectError(IndexError.IndexOutOfBounds, arr.get(f32, &.{ 2, 0 }));
+    try std.testing.expectError(IndexError.RankMismatch, arr.get(f32, &.{0}));
+
+    // Mutation through a transposed view lands in shared storage
+    const transpose = @import("../manip/transpose.zig").transpose;
+    var tv = try transpose(arr, .{});
+    defer tv.deinit();
+    try tv.set(f32, &.{ 1, 0 }, 7.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 7.0), try arr.get(f32, &.{ 0, 1 }), 1e-6);
+}
+
 test "geomspace, triu, and tril" {
     const allocator = std.testing.allocator;
 
@@ -1265,4 +1317,53 @@ test "take, put, and fill methods" {
     try std.testing.expectEqual(@as(f64, 42.0), try arr.getItem(f64, &.{0}));
     try arr.setItem(f64, 100.0);
     try std.testing.expectEqual(@as(f64, 100.0), try arr.getItem(f64, &.{0}));
+}
+
+test "rank coverage, strides, and strided assignment" {
+    const allocator = std.testing.allocator;
+
+    // Rank 3 and rank 4 metadata, element counts, and byte sizes
+    var r3 = try zeros(allocator, .{ .shape = &.{ 2, 3, 4 }, .dtype = .f32 });
+    defer r3.deinit();
+    try std.testing.expectEqual(@as(u8, 3), r3.ndim);
+    try std.testing.expectEqual(@as(usize, 24), r3.elementCount());
+    try std.testing.expectEqual(@as(usize, 96), r3.byteCount());
+    try std.testing.expect(r3.isContiguous());
+
+    var r4 = try ones(allocator, .{ .shape = &.{ 2, 2, 2, 2 }, .dtype = .i16 });
+    defer r4.deinit();
+    try std.testing.expectEqual(@as(u8, 4), r4.ndim);
+    try std.testing.expectEqual(@as(usize, 16), r4.elementCount());
+
+    // Maximum supported rank carries metadata without heap shape storage
+    var max_shape: [MAX_RANK]usize = [_]usize{1} ** MAX_RANK;
+    max_shape[0] = 2;
+    var rmax = try zeros(allocator, .{ .shape = max_shape[0..], .dtype = .u8 });
+    defer rmax.deinit();
+    try std.testing.expectEqual(@as(u8, MAX_RANK), rmax.ndim);
+    try std.testing.expectEqual(@as(usize, 2), rmax.elementCount());
+
+    // Rank beyond the limit is rejected explicitly
+    var too_many: [MAX_RANK + 1]usize = [_]usize{1} ** (MAX_RANK + 1);
+    try std.testing.expectError(ShapeError.RankExceeded, zeros(allocator, .{ .shape = too_many[0..], .dtype = .f64 }));
+
+    // Stepped slice assignment lands at strided offsets
+    const v_data = [_]f64{ 0, 1, 2, 3, 4, 5 };
+    var v = try fromSlice(allocator, f64, .{ .data = &v_data, .shape = &.{6} });
+    defer v.deinit();
+    const slice_fn = @import("../manip/slice.zig").slice;
+    var stepped = try slice_fn(v, &.{.{ .start = 0, .stop = 6, .step = 2 }});
+    defer stepped.deinit();
+    try std.testing.expect(!stepped.isContiguous());
+    try stepped.set(f64, &.{1}, 99.0);
+    try std.testing.expectEqual(@as(f64, 99.0), try v.get(f64, &.{2}));
+
+    // Sliced-view fill and clone roundtrip preserve values
+    var sub = try slice_fn(v, &.{.{ .start = 1, .stop = 4, .step = 1 }});
+    defer sub.deinit();
+    var sub_copy = try sub.clone();
+    defer sub_copy.deinit();
+    try std.testing.expect(sub_copy.isContiguous());
+    try std.testing.expectEqualSlices(usize, &.{3}, sub_copy.shapeSlice());
+    try std.testing.expectEqual(@as(f64, 99.0), try sub_copy.get(f64, &.{1}));
 }

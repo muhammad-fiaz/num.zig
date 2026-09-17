@@ -14,12 +14,17 @@ pub fn outer(a: Array, b: Array, options: struct { dtype: ?DType = null }) !Arra
 pub fn kron(a: Array, b: Array, options: struct { dtype: ?DType = null }) !Array;
 ```
 
+`dot` and `inner` are deliberate aliases of `matmul` with identical semantics.
+
 ---
 
 ## Solvers and Inverses
 
 ```zig
 pub fn solve(a: Array, b: Array) !Array;
+pub fn solveTriangular(a: Array, b: Array, options: struct { lower: bool = true }) !Array;
+pub fn solveSpd(a: Array, b: Array) !Array;
+pub fn lstsq(a: Array, b: Array) !Array;
 pub fn inv(a: Array) !Array;
 pub fn pinv(a: Array, options: struct { rcond: f64 = 1e-15 }) !Array;
 pub fn matrixPower(a: Array, n: isize) !Array;
@@ -76,7 +81,7 @@ pub const SlogdetResult = struct {
     pub fn deinit(self: *SlogdetResult) void;
 };
 pub fn slogdet(a: Array) !SlogdetResult;
-pub fn trace(a: Array, options: struct { offset: isize = 0, axis1: usize = 0, axis2: usize = 1 }) !Array;
+pub fn trace(a: Array) !Array;
 pub fn matrixRank(a: Array, options: struct { tol: ?f64 = null }) !usize;
 pub fn norm(a: Array, options: struct { ord: NormOrder = .l2, axis: ?isize = null, keepDims: bool = false }) !Array;
 ```

@@ -39,4 +39,17 @@ pub fn main() !void {
         try padded.get(f64, &.{0}),
         try padded.get(f64, &.{1}),
     });
+
+    // 5. Append / insert / delete
+    var appended = try num.manip.append(a, b, .{});
+    defer appended.deinit();
+    std.debug.print("Appended length: {d}\n", .{appended.elementCount()});
+
+    var inserted = try num.manip.insert(a, 1, b, .{});
+    defer inserted.deinit();
+    std.debug.print("Inserted[1]: {d:.1}\n", .{try inserted.get(f64, &.{1})});
+
+    var deleted = try num.manip.delete(appended, 0, .{});
+    defer deleted.deinit();
+    std.debug.print("Deleted length: {d}\n", .{deleted.elementCount()});
 }

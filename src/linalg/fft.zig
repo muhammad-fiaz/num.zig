@@ -17,10 +17,13 @@ const DType = @import("../core/dtype.zig").DType;
 pub const Complex64 = std.math.Complex(f32);
 pub const Complex128 = std.math.Complex(f64);
 
-pub const FftOptions = struct {
+const FftOptions = struct {
     axis: isize = -1,
-    norm: enum { backward, ortho, forward } = .backward,
+    norm: Norm = .backward,
 };
+
+/// FFT normalization convention shared by 1D and 2D transforms.
+pub const Norm = enum { backward, ortho, forward };
 
 /// 1D Fast Fourier Transform along specified axis.
 pub fn fft(
@@ -36,6 +39,35 @@ pub fn ifft(
     options: FftOptions,
 ) (ShapeError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
     return computeFft1D(a, options, true);
+}
+
+/// 2D Fast Fourier Transform over the last two axes.
+/// Reuses the shared 1D kernel sequentially; supports any rank >= 2.
+pub fn fft2(
+    a: Array,
+    options: struct { norm: Norm = .backward },
+) (ShapeError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const s = a.shape();
+    if (s.ndim < 2) return ShapeError.InvalidDimension;
+    const ax1: isize = @intCast(s.ndim - 2);
+    const ax2: isize = @intCast(s.ndim - 1);
+    var tmp = try fft(a, .{ .axis = ax2, .norm = options.norm });
+    defer tmp.deinit();
+    return fft(tmp, .{ .axis = ax1, .norm = options.norm });
+}
+
+/// 2D Inverse Fast Fourier Transform over the last two axes.
+pub fn ifft2(
+    a: Array,
+    options: struct { norm: Norm = .backward },
+) (ShapeError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const s = a.shape();
+    if (s.ndim < 2) return ShapeError.InvalidDimension;
+    const ax1: isize = @intCast(s.ndim - 2);
+    const ax2: isize = @intCast(s.ndim - 1);
+    var tmp = try ifft(a, .{ .axis = ax2, .norm = options.norm });
+    defer tmp.deinit();
+    return ifft(tmp, .{ .axis = ax1, .norm = options.norm });
 }
 
 fn computeFft1D(
@@ -223,26 +255,36 @@ pub fn rfftfreq(
     return out;
 }
 
+/// Shared shift kernel for fftshift/ifftshift (sign selects direction).
+fn shiftCenter(
+    a: Array,
+    comptime sign: isize,
+    axis_opt: ?isize,
+) (ShapeError || std.mem.Allocator.Error)!Array {
+    const roll = @import("../manip/transpose.zig").roll;
+    const s = a.shape();
+    if (axis_opt) |ax| {
+        const norm_ax = try s.normalizeAxis(ax);
+        const half: isize = @intCast(s.dims[norm_ax] / 2);
+        return roll(a, .{ .shift = sign * half, .axis = @intCast(norm_ax) });
+    }
+    var cur = try a.clone();
+    errdefer cur.deinit();
+    for (0..s.ndim) |d| {
+        const half: isize = @intCast(s.dims[d] / 2);
+        const next = try roll(cur, .{ .shift = sign * half, .axis = @intCast(d) });
+        cur.deinit();
+        cur = next;
+    }
+    return cur;
+}
+
 /// Shifts zero-frequency component to center of spectrum along specified axes.
 pub fn fftshift(
     a: Array,
     options: struct { axis: ?isize = null },
 ) (ShapeError || std.mem.Allocator.Error)!Array {
-    const s = a.shape();
-    if (options.axis) |ax| {
-        const norm_ax = try s.normalizeAxis(ax);
-        const shift_val = @as(isize, @intCast(s.dims[norm_ax] / 2));
-        return @import("../manip/transpose.zig").roll(a, .{ .shift = shift_val, .axis = @intCast(norm_ax) });
-    } else {
-        var cur = try a.clone();
-        for (0..s.ndim) |d| {
-            const shift_val = @as(isize, @intCast(s.dims[d] / 2));
-            const next = try @import("../manip/transpose.zig").roll(cur, .{ .shift = shift_val, .axis = @intCast(d) });
-            cur.deinit();
-            cur = next;
-        }
-        return cur;
-    }
+    return shiftCenter(a, 1, options.axis);
 }
 
 /// Inverse of fftshift.
@@ -250,21 +292,7 @@ pub fn ifftshift(
     a: Array,
     options: struct { axis: ?isize = null },
 ) (ShapeError || std.mem.Allocator.Error)!Array {
-    const s = a.shape();
-    if (options.axis) |ax| {
-        const norm_ax = try s.normalizeAxis(ax);
-        const shift_val = -@as(isize, @intCast(s.dims[norm_ax] / 2));
-        return @import("../manip/transpose.zig").roll(a, .{ .shift = shift_val, .axis = @intCast(norm_ax) });
-    } else {
-        var cur = try a.clone();
-        for (0..s.ndim) |d| {
-            const shift_val = -@as(isize, @intCast(s.dims[d] / 2));
-            const next = try @import("../manip/transpose.zig").roll(cur, .{ .shift = shift_val, .axis = @intCast(d) });
-            cur.deinit();
-            cur = next;
-        }
-        return cur;
-    }
+    return shiftCenter(a, -1, options.axis);
 }
 
 test "fft and ifft roundtrip" {
@@ -307,5 +335,25 @@ test "fft and ifft roundtrip" {
     defer unshifted.deinit();
     for (0..8) |i| {
         try std.testing.expectEqual(data[i], try unshifted.get(f64, &.{i}));
+    }
+}
+
+test "fft2 and ifft2 roundtrip" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const data = [_]f64{ 1.0, 2.0, 3.0, 4.0 };
+    var arr = try fromSlice(allocator, f64, .{ .data = &data, .shape = &.{ 2, 2 } });
+    defer arr.deinit();
+    var f = try fft2(arr, .{});
+    defer f.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, f.shapeSlice());
+    var rt = try ifft2(f, .{});
+    defer rt.deinit();
+    for (0..2) |r| {
+        for (0..2) |c| {
+            const v = try rt.get(Complex128, &.{ r, c });
+            try std.testing.expectApproxEqAbs(data[r * 2 + c], v.re, 1e-6);
+            try std.testing.expectApproxEqAbs(@as(f64, 0.0), v.im, 1e-6);
+        }
     }
 }

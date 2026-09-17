@@ -49,13 +49,13 @@ pub fn isFinite(a: Array) !Array;
 pub fn isClose(
     a: Array,
     b: Array,
-    options: struct { rtol: f64 = 1e-5, atol: f64 = 1e-8 },
+    options: struct { rtol: f64 = 1e-5, atol: f64 = 1e-8, equalNan: bool = false },
 ) !Array;
 
 pub fn allClose(
     a: Array,
     b: Array,
-    options: struct { rtol: f64 = 1e-5, atol: f64 = 1e-8 },
+    options: struct { rtol: f64 = 1e-5, atol: f64 = 1e-8, equalNan: bool = false },
 ) !bool;
 ```
 

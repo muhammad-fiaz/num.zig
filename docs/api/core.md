@@ -7,29 +7,32 @@ Module: `@import("num")`
 ## Types
 
 ### `Array`
-The central N-dimensional numerical container.
+The central N-dimensional numerical container with SBO shape/strides, explicit ownership, and strided views.
 ```zig
 pub const Array = struct {
     allocator: std.mem.Allocator,
     dtype: DType,
-    shape: Shape,
-    strides: Strides,
-    buffer: Buffer,
+    ndim: u8,
+    shape_dims: [MAX_RANK]usize,
+    stride_vals: [MAX_RANK]isize,
+    flags: ArrayFlags,       // ownsData, isCContiguous, isFContiguous
+    root_buffer: ?Buffer,
 
-    pub fn deinit(self: *Array) void;
-    pub fn data(self: *const Array, comptime T: type) []T;
-    pub fn get(self: *const Array, comptime T: type, indices: []const usize) !T;
-    pub fn getItem(self: *const Array, comptime T: type, indices: []const usize) !T; // direct alias to get
-    pub fn set(self: *Array, comptime T: type, indices: []const usize, val: T) !void;
-    pub fn fill(self: *Array, comptime T: type, val: T) void;
-    pub fn take(self: *const Array, indices: *const Array, options: struct { axis: ?usize = null }) !Array;
-    pub fn put(self: *Array, indices: *const Array, values: *const Array) !void;
-    pub fn clone(self: *const Array) !Array;
-    pub fn astype(self: *const Array, comptime T: type) !Array;
-    pub fn isContiguous(self: *const Array) bool;
-    pub fn reshapeInPlace(self: *Array, new_shape: []const usize) !void;
-    pub fn broadcastTo(self: *const Array, new_shape: []const usize) !Array;
-    pub fn slice(self: *const Array, slices: []const SliceSpec) !Array;
+    pub fn deinit(self: *Array) void;                                     // no-op for views
+    pub fn view(self: Array) Array;                                      // non-owning borrow; caller must ensure lifetime
+    pub fn clone(self: Array) !Array;                                    // deep contiguous copy; alias: copy
+    pub fn asContiguous(self: Array) !Array;                             // owned contiguous copy
+    pub fn astype(self: Array, target: DType) !Array;                    // dtype-converting copy
+    pub fn shapeSlice(self: *const Array) []const usize;
+    pub fn stridesSlice(self: *const Array) []const isize;
+    pub fn elementCount(self: Array) usize;
+    pub fn byteCount(self: Array) usize;
+    pub fn isContiguous(self: Array) bool;
+    pub fn get(self: Array, comptime T: type, indices: []const usize) !T; // e.g. get(f32, &.{0}); DTypeMismatch on wrong T
+    pub fn set(self: Array, comptime T: type, indices: []const usize, value: T) !void; // works on strided views
+    pub fn item(self: Array, comptime T: type) !T;
+    pub fn getAsFloat(self: Array, indices: []const usize) !f64;
+    pub fn setFromFloat(self: Array, indices: []const usize, val: f64) !void;
 };
 ```
 
@@ -136,6 +139,13 @@ pub fn empty(
         order: Order = .c,
     },
 ) !Array;
+```
+
+### `scalar`
+Creates a 0D array holding a single constant value (reuses `full`):
+```zig
+// options.value is any scalar; options.dtype is optional
+pub fn scalar(allocator: std.mem.Allocator, options: anytype) !Array;
 ```
 
 ### `arange`

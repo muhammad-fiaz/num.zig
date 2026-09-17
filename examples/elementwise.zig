@@ -43,7 +43,7 @@ pub fn main() !void {
     std.debug.print("  b > a [0]: {}\n", .{try is_gt.get(bool, &.{0})});
 
     // 4. Conditional where selection
-    var selected = try num.ops.where(is_gt, b, a, .{});
+    var selected = try num.ops.where(is_gt, b, a);
     defer selected.deinit();
     std.debug.print("  where(b > a, b, a)[0]: {d:.1}\n", .{try selected.get(f64, &.{0})});
 

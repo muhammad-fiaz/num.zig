@@ -13,6 +13,7 @@ const DType = @import("../core/dtype.zig").DType;
 const MAX_RANK = @import("../core/shape.zig").MAX_RANK;
 const ShapeError = @import("../core/error.zig").ShapeError;
 const DTypeError = @import("../core/error.zig").DTypeError;
+const IndexError = @import("../core/error.zig").IndexError;
 const NdIterator = @import("../core/iterator.zig").NdIterator;
 
 /// Joins a sequence of arrays along an existing axis.
@@ -102,6 +103,32 @@ pub fn stack(
     }
 
     return concat(expanded, .{ .axis = options.axis });
+}
+
+/// Stacks arrays horizontally: 1D arrays join along axis 0, while
+/// higher-rank arrays join along axis 1. Thin wrapper over `concat`.
+pub fn hstack(arrays: []const Array) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arrays.len == 0) return ShapeError.EmptyArray;
+    const axis: isize = if (arrays[0].ndim <= 1) 0 else 1;
+    return concat(arrays, .{ .axis = axis });
+}
+
+/// Stacks arrays vertically: 1D inputs are promoted with `atleast2d` and
+/// joined along axis 0. Thin wrapper over `concat`.
+pub fn vstack(arrays: []const Array) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (arrays.len == 0) return ShapeError.EmptyArray;
+    const atleast2d = @import("reshape.zig").atleast2d;
+    const first = arrays[0];
+    var promoted = try first.allocator.alloc(Array, arrays.len);
+    defer first.allocator.free(promoted);
+    var count: usize = 0;
+    errdefer for (promoted[0..count]) |*p| p.deinit();
+    for (arrays) |arr| {
+        promoted[count] = try atleast2d(arr);
+        count += 1;
+    }
+    defer for (promoted[0..count]) |*p| p.deinit();
+    return concat(promoted, .{ .axis = 0 });
 }
 
 /// Splits an array into multiple sub-arrays along an axis.
@@ -294,41 +321,130 @@ fn readAndCast(comptime TargetT: type, arr: Array, offset: isize) TargetT {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));
             const elem = if (offset >= 0) ptr[@as(usize, @intCast(offset))] else ptr[0];
-            if (TargetT == SrcT) return elem;
-            return switch (@typeInfo(TargetT)) {
-                .float => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @floatFromInt(elem),
-                    .float, .comptime_float => @floatCast(elem),
-                    .bool => if (elem) 1.0 else 0.0,
-                    .@"struct" => @floatCast(elem.re),
-                    else => 0.0,
-                },
-                .int => switch (@typeInfo(SrcT)) {
-                    .int, .comptime_int => @intCast(elem),
-                    .float, .comptime_float => @intFromFloat(elem),
-                    .bool => if (elem) 1 else 0,
-                    .@"struct" => @intFromFloat(elem.re),
-                    else => 0,
-                },
-                .bool => switch (@typeInfo(SrcT)) {
-                    .bool => elem,
-                    .int, .comptime_int => elem != 0,
-                    .float, .comptime_float => elem != 0.0,
-                    .@"struct" => elem.re != 0.0 or elem.im != 0.0,
-                    else => false,
-                },
-                .@"struct" => switch (@typeInfo(SrcT)) {
-                    .@"struct" => .{ .re = @floatCast(elem.re), .im = @floatCast(elem.im) },
-                    .float, .comptime_float => .{ .re = @floatCast(elem), .im = 0.0 },
-                    .int, .comptime_int => .{ .re = @floatFromInt(elem), .im = 0.0 },
-                    .bool => .{ .re = if (elem) 1.0 else 0.0, .im = 0.0 },
-                    else => .{ .re = 0.0, .im = 0.0 },
-                },
-                else => 0,
-            };
+            return DType.castValue(TargetT, SrcT, elem);
         }
     }
     return if (TargetT == bool) false else if (@typeInfo(TargetT) == .@"struct") TargetT.init(0.0, 0.0) else 0;
+}
+
+/// Appends `values` to `arr`. With `axis = null` both inputs are flattened
+/// and joined into a new 1D array; otherwise joins along the given axis.
+/// Returns a new owned array reusing the shared `concat` kernel.
+pub fn append(
+    arr: Array,
+    values: Array,
+    options: struct { axis: ?isize = null },
+) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
+    if (options.axis == null) {
+        const ravel = @import("reshape.zig").ravel;
+        var flat_a = try ravel(arr);
+        defer flat_a.deinit();
+        var flat_v = try ravel(values);
+        defer flat_v.deinit();
+        return concat(&.{ flat_a, flat_v }, .{ .axis = 0 });
+    }
+    return concat(&.{ arr, values }, .{ .axis = options.axis.? });
+}
+
+/// Inserts `values` into `arr` at `index` along `axis` (flattened when null).
+/// Returns a new owned array reusing `slice` views and the `concat` kernel.
+pub fn insert(
+    arr: Array,
+    index: usize,
+    values: Array,
+    options: struct { axis: ?isize = null },
+) (ShapeError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const slice_fn = @import("slice.zig").slice;
+    const Slice = @import("../core/shape.zig").Slice;
+    const ravel = @import("reshape.zig").ravel;
+
+    if (options.axis == null) {
+        var flat_a = try ravel(arr);
+        defer flat_a.deinit();
+        var flat_v = try ravel(values);
+        defer flat_v.deinit();
+        const n = flat_a.elementCount();
+        if (index > n) return IndexError.IndexOutOfBounds;
+        var head_slices = [_]Slice{.{ .start = 0, .stop = @intCast(index), .step = 1 }};
+        var tail_slices = [_]Slice{.{ .start = @intCast(index), .stop = null, .step = 1 }};
+        var head = try slice_fn(flat_a, head_slices[0..]);
+        defer head.deinit();
+        var tail = try slice_fn(flat_a, tail_slices[0..]);
+        defer tail.deinit();
+        var first = try concat(&.{ head, flat_v }, .{ .axis = 0 });
+        defer first.deinit();
+        return concat(&.{ first, tail }, .{ .axis = 0 });
+    }
+
+    const s = arr.shape();
+    const axis = try s.normalizeAxis(options.axis.?);
+    const axis_len = s.dims[axis];
+    if (index > axis_len) return IndexError.IndexOutOfBounds;
+    var head_s: [MAX_RANK]Slice = undefined;
+    var tail_s: [MAX_RANK]Slice = undefined;
+    for (0..s.ndim) |d| {
+        if (d == axis) {
+            head_s[d] = .{ .start = 0, .stop = @intCast(index), .step = 1 };
+            tail_s[d] = .{ .start = @intCast(index), .stop = null, .step = 1 };
+        } else {
+            head_s[d] = .{ .start = null, .stop = null, .step = 1 };
+            tail_s[d] = .{ .start = null, .stop = null, .step = 1 };
+        }
+    }
+    var head = try slice_fn(arr, head_s[0..s.ndim]);
+    defer head.deinit();
+    var tail = try slice_fn(arr, tail_s[0..s.ndim]);
+    defer tail.deinit();
+    var first = try concat(&.{ head, values }, .{ .axis = @intCast(axis) });
+    defer first.deinit();
+    return concat(&.{ first, tail }, .{ .axis = @intCast(axis) });
+}
+
+/// Deletes the element at `index` along `axis` (flattened when null).
+/// Returns a new owned array reusing `slice` views and the `concat` kernel.
+pub fn delete(
+    arr: Array,
+    index: usize,
+    options: struct { axis: ?isize = null },
+) (ShapeError || DTypeError || IndexError || std.mem.Allocator.Error)!Array {
+    const slice_fn = @import("slice.zig").slice;
+    const Slice = @import("../core/shape.zig").Slice;
+    const ravel = @import("reshape.zig").ravel;
+
+    if (options.axis == null) {
+        var flat = try ravel(arr);
+        defer flat.deinit();
+        const n = flat.elementCount();
+        if (index >= n) return IndexError.IndexOutOfBounds;
+        var head_slices = [_]Slice{.{ .start = 0, .stop = @intCast(index), .step = 1 }};
+        var tail_slices = [_]Slice{.{ .start = @intCast(index + 1), .stop = null, .step = 1 }};
+        var head = try slice_fn(flat, head_slices[0..]);
+        defer head.deinit();
+        var tail = try slice_fn(flat, tail_slices[0..]);
+        defer tail.deinit();
+        return concat(&.{ head, tail }, .{ .axis = 0 });
+    }
+
+    const s = arr.shape();
+    const axis = try s.normalizeAxis(options.axis.?);
+    const axis_len = s.dims[axis];
+    if (index >= axis_len) return IndexError.IndexOutOfBounds;
+    var head_s: [MAX_RANK]Slice = undefined;
+    var tail_s: [MAX_RANK]Slice = undefined;
+    for (0..s.ndim) |d| {
+        if (d == axis) {
+            head_s[d] = .{ .start = 0, .stop = @intCast(index), .step = 1 };
+            tail_s[d] = .{ .start = @intCast(index + 1), .stop = null, .step = 1 };
+        } else {
+            head_s[d] = .{ .start = null, .stop = null, .step = 1 };
+            tail_s[d] = .{ .start = null, .stop = null, .step = 1 };
+        }
+    }
+    var head = try slice_fn(arr, head_s[0..s.ndim]);
+    defer head.deinit();
+    var tail = try slice_fn(arr, tail_s[0..s.ndim]);
+    defer tail.deinit();
+    return concat(&.{ head, tail }, .{ .axis = @intCast(axis) });
 }
 
 test "concat, stack, and split" {
@@ -388,4 +504,69 @@ test "tile and repeat" {
     var rep = try repeat(a, .{ .repeats = 3 });
     defer rep.deinit();
     try std.testing.expectEqualSlices(f64, &.{ 1, 1, 1, 2, 2, 2 }, try rep.asSlice(f64));
+}
+
+test "append, insert, and delete" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+
+    const d1 = [_]f64{ 1, 2, 3 };
+    var a = try fromSlice(allocator, f64, .{ .data = &d1, .shape = &.{3} });
+    defer a.deinit();
+    const d2 = [_]f64{4};
+    var v = try fromSlice(allocator, f64, .{ .data = &d2, .shape = &.{1} });
+    defer v.deinit();
+
+    var ap = try append(a, v, .{});
+    defer ap.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 1, 2, 3, 4 }, try ap.asSlice(f64));
+
+    var ins = try insert(a, 1, v, .{});
+    defer ins.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 1, 4, 2, 3 }, try ins.asSlice(f64));
+
+    var del = try delete(a, 1, .{});
+    defer del.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 1, 3 }, try del.asSlice(f64));
+
+    // Axis variant on 2D: delete row 0 of [[1, 2], [3, 4]] -> [[3, 4]]
+    const m = [_]f64{ 1, 2, 3, 4 };
+    var mat = try fromSlice(allocator, f64, .{ .data = &m, .shape = &.{ 2, 2 } });
+    defer mat.deinit();
+    var droprow = try delete(mat, 0, .{ .axis = 0 });
+    defer droprow.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 1, 2 }, droprow.shapeSlice());
+    try std.testing.expectEqualSlices(f64, &.{ 3, 4 }, try droprow.asSlice(f64));
+}
+
+test "hstack and vstack" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+
+    const d1 = [_]f64{ 1, 2 };
+    var a = try fromSlice(allocator, f64, .{ .data = &d1, .shape = &.{2} });
+    defer a.deinit();
+    const d2 = [_]f64{ 3, 4 };
+    var b = try fromSlice(allocator, f64, .{ .data = &d2, .shape = &.{2} });
+    defer b.deinit();
+
+    // 1D hstack joins along axis 0 -> [1, 2, 3, 4]
+    var h1 = try hstack(&.{ a, b });
+    defer h1.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ 1, 2, 3, 4 }, try h1.asSlice(f64));
+
+    // 1D vstack promotes to rows -> [[1, 2], [3, 4]]
+    var v1 = try vstack(&.{ a, b });
+    defer v1.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 2, 2 }, v1.shapeSlice());
+    try std.testing.expectEqualSlices(f64, &.{ 1, 2, 3, 4 }, try v1.asSlice(f64));
+
+    // 2D hstack joins along axis 1
+    var m1 = try fromSlice(allocator, f64, .{ .data = &d1, .shape = &.{ 1, 2 } });
+    defer m1.deinit();
+    var m2 = try fromSlice(allocator, f64, .{ .data = &d2, .shape = &.{ 1, 2 } });
+    defer m2.deinit();
+    var h2 = try hstack(&.{ m1, m2 });
+    defer h2.deinit();
+    try std.testing.expectEqualSlices(usize, &.{ 1, 4 }, h2.shapeSlice());
 }

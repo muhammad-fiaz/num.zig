@@ -24,7 +24,7 @@ const num = @import("num");
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var a = try num.full(allocator, f32, &.{ 1_000_000 }, 16.0);
+    var a = try num.full(allocator, .{ .shape = &.{1_000_000}, .value = @as(f32, 16.0) });
     defer a.deinit();
 
     const Context = struct { arr: num.Array };

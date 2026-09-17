@@ -22,6 +22,9 @@ pub fn prod(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = 
 pub fn min(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
 pub fn max(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
 pub fn mean(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn median(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn variance(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
+pub fn stdDev(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false, dtype: ?DType = null }) !Array;
 pub fn all(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
 pub fn any(arr: Array, options: struct { axis: ?isize = null, keepDims: bool = false }) !Array;
 ```

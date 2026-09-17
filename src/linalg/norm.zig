@@ -21,7 +21,7 @@ pub const NormOrder = enum {
     neg_inf,
 };
 
-pub const NormOptions = struct {
+const NormOptions = struct {
     ord: NormOrder = .l2,
     axis: ?isize = null,
     keepDims: bool = false,

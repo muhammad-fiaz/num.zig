@@ -23,6 +23,7 @@ pub const CsrMatrix = struct {
     pub fn fromDense(allocator: std.mem.Allocator, dense: Array, tol: f64) !CsrMatrix;
     pub fn toDense(self: CsrMatrix) !Array;
     pub fn dotVector(self: CsrMatrix, x: Array) !Array;
+    pub fn transpose(self: CsrMatrix) !CscMatrix;
 };
 ```
 
@@ -42,6 +43,8 @@ pub const CscMatrix = struct {
     pub fn nnz(self: CscMatrix) usize;
     pub fn fromDense(allocator: std.mem.Allocator, dense: Array, tol: f64) !CscMatrix;
     pub fn toDense(self: CscMatrix) !Array;
+    pub fn dotVector(self: CscMatrix, x: Array) !Array;
+    pub fn transpose(self: CscMatrix) !CsrMatrix;
 };
 ```
 

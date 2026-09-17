@@ -1,83 +1,51 @@
 # Fast Fourier Transform (`num.fft`)
 
-`num.zig` implements an in-house Fast Fourier Transform (FFT) engine capable of 1D and multi-dimensional transforms for both real and complex data.
+`num.zig` implements a Fast Fourier Transform engine with 1D transforms along a selected axis, 2D transforms over the last two axes, frequency helpers, and shift utilities. Complex element types reuse Zig 0.16.0 `std.math.Complex` (`num.fft.Complex64` / `num.fft.Complex128`).
 
 ---
 
 ## 1. 1D FFT and IFFT
 
-Transforms complex time-domain signals into frequency spectra using an optimized Radix-2 Cooley-Tukey algorithm (with fallback to direct DFT for arbitrary prime lengths):
+Transforms signals along a selected axis (default last axis), reusing the shared Radix-2/DFT kernel with `backward`, `ortho`, and `forward` normalizations:
 
 ```zig
-const std = @import("std");
-const num = @import("num");
-const Complex = num.Complex;
+var input = try num.fromSlice(allocator, f64, .{
+    .data = &[_]f64{ 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0 },
+    .shape = &.{8},
+});
+defer input.deinit();
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+// Forward FFT
+var spectrum = try num.fft.fft(input, .{});
+defer spectrum.deinit();
 
-    // Create 8 complex samples
-    const signal = [_]Complex(f64){
-        .{ .re = 1.0, .im = 0.0 },
-        .{ .re = 1.0, .im = 0.0 },
-        .{ .re = 1.0, .im = 0.0 },
-        .{ .re = 1.0, .im = 0.0 },
-        .{ .re = 0.0, .im = 0.0 },
-        .{ .re = 0.0, .im = 0.0 },
-        .{ .re = 0.0, .im = 0.0 },
-        .{ .re = 0.0, .im = 0.0 },
-    };
-
-    var input = try num.fromSlice(allocator, Complex(f64), .{
-        .data = &signal,
-        .shape = &.{8},
-    });
-    defer input.deinit();
-
-    // Forward FFT
-    var spectrum = try num.fft.fft(allocator, f64, &input);
-    defer spectrum.deinit();
-
-    // Inverse FFT
-    var reconstructed = try num.fft.ifft(allocator, f64, &spectrum);
-    defer reconstructed.deinit();
-}
+// Inverse FFT
+var reconstructed = try num.fft.ifft(spectrum, .{});
+defer reconstructed.deinit();
 ```
 
 ---
 
-## 2. Real-Valued FFT (`rfft`, `irfft`)
+## 2. 2D FFT (`fft2`, `ifft2`)
 
-For strictly real-valued input signals, `rfft` exploits Hermitian symmetry to compute only the positive frequencies $N/2 + 1$, cutting computation time and storage in half:
-
-```zig
-var real_sig = try num.zeros(allocator, f64, &.{1024});
-defer real_sig.deinit();
-
-var half_spectrum = try num.fft.rfft(allocator, f64, &real_sig);
-defer half_spectrum.deinit(); // Length: 513
-```
-
----
-
-## 3. Multi-Dimensional FFT (`fftn`, `ifftn`)
-
-Transforms 2D images, 3D volume grids, or N-dimensional tensors across all or specified axes:
+Transforms rank-2+ arrays over the last two axes by reusing the 1D kernel sequentially:
 
 ```zig
-var image = try num.zeros(allocator, Complex(f32), &.{ 256, 256 });
+var image = try num.zeros(allocator, .{ .shape = &.{ 4, 4 }, .dtype = .f64 });
 defer image.deinit();
 
-var k_space = try num.fft.fftn(allocator, f32, &image);
+var k_space = try num.fft.fft2(image, .{});
 defer k_space.deinit();
+
+var restored = try num.fft.ifft2(k_space, .{});
+defer restored.deinit();
 ```
 
 ---
 
-## 4. Helper Utilities
+## 3. Helper Utilities
 
-- **`fftfreq`**: Computes sample frequencies for given window length and sampling rate.
+- **`fftfreq`**: DFT sample frequencies for a window length and sampling interval.
+- **`rfftfreq`**: Frequencies for real-input transforms (length `n/2 + 1`).
 - **`fftshift`**: Shifts zero-frequency component to the center of the spectrum.
 - **`ifftshift`**: Inverts `fftshift`.

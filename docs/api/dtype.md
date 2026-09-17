@@ -25,32 +25,29 @@ pub const DType = enum {
     c64,
     c128,
 
-    pub fn size(self: DType) usize;
-    pub fn isFloat(self: DType) bool;
-    pub fn isInt(self: DType) bool;
-    pub fn isSigned(self: DType) bool;
-    pub fn isComplex(self: DType) bool;
+    pub fn toType(comptime self: DType) type;
     pub fn fromType(comptime T: type) DType;
+    pub fn sizeOf(self: DType) usize;
+    pub fn alignmentOf(self: DType) usize;
+    pub fn isFloat(self: DType) bool;
+    pub fn isInteger(self: DType) bool;
+    pub fn isSigned(self: DType) bool;
+    pub fn isUnsigned(self: DType) bool;
+    pub fn isComplex(self: DType) bool;
+    pub fn isBoolean(self: DType) bool;
+    pub fn promote(a: DType, b: DType) DType;
+    pub fn castValue(comptime DstT: type, comptime SrcT: type, val: SrcT) DstT;
 };
 ```
+
+Complex element types reuse Zig 0.16.0 `std.math.Complex(f32)` (`c64`) and `std.math.Complex(f64)` (`c128`), verified in the local `std`.
 
 ---
 
 ## Functions
 
-### `promoteDTypes`
+### `promote`
 Determines the common promoted type between two data types:
 ```zig
-pub fn promoteDTypes(a: DType, b: DType) DType;
-```
-
-### `Complex`
-Generic complex number representation:
-```zig
-pub fn Complex(comptime T: type) type {
-    return struct {
-        re: T,
-        im: T,
-    };
-}
+pub fn promote(a: DType, b: DType) DType;
 ```

@@ -26,15 +26,13 @@ pub const SparseSolveResult = struct {
     }
 };
 
-/// Options for Conjugate Gradient solver.
-pub const CgOptions = struct {
+const CgConfig = struct {
     maxIter: usize = 1000,
     tol: f64 = 1e-6,
     x0: ?Array = null,
 };
 
-/// Options for GMRES solver.
-pub const GmresOptions = struct {
+const GmresConfig = struct {
     restart: usize = 30,
     maxIter: usize = 1000,
     tol: f64 = 1e-6,
@@ -42,10 +40,16 @@ pub const GmresOptions = struct {
 };
 
 /// Solves A x = b for symmetric positive-definite A using Conjugate Gradient.
+///
+/// Inline configuration (all fields optional, may be omitted):
+/// ```zig
+/// num.sparse.cg(A, b, .{ .tol = 1e-8, .maxIter = 1000 });
+/// num.sparse.cg(A, b);
+/// ```
 pub fn cg(
     A: CsrMatrix,
     b: Array,
-    options: CgOptions,
+    options: CgConfig,
 ) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!SparseSolveResult {
     if (A.rows != A.cols) return LinalgError.MatrixNotSquare;
     if (b.ndim != 1 or b.shape_dims[0] != A.rows) return ShapeError.IncompatibleShapes;
@@ -55,11 +59,15 @@ pub fn cg(
 
     const allocator = A.allocator;
 
+    const max_iter: usize = options.maxIter;
+    const tol: f64 = options.tol;
+    const x0_opt: ?Array = options.x0;
+
     // Allocate solution vector x
     var x = try zeros(allocator, .{ .shape = &.{n}, .dtype = .f64 });
     errdefer x.deinit();
 
-    if (options.x0) |x0_arr| {
+    if (x0_opt) |x0_arr| {
         if (x0_arr.ndim != 1 or x0_arr.shape_dims[0] != n) return ShapeError.IncompatibleShapes;
         for (0..n) |i| {
             try x.setFromFloat(&.{i}, try x0_arr.getAsFloat(&.{i}));
@@ -75,7 +83,7 @@ pub fn cg(
         b_norm_sq += val * val;
     }
     const b_norm = @sqrt(b_norm_sq);
-    const threshold = options.tol * (if (b_norm > 0) b_norm else 1.0);
+    const cg_threshold = tol * (if (b_norm > 0) b_norm else 1.0);
 
     // Compute initial residual r = b - A*x
     const r = try allocator.alloc(f64, n);
@@ -92,7 +100,7 @@ pub fn cg(
         rho += r[i] * r[i];
     }
 
-    if (@sqrt(rho) <= threshold) {
+    if (@sqrt(rho) <= cg_threshold) {
         return SparseSolveResult{
             .x = x,
             .iterations = 0,
@@ -114,7 +122,7 @@ pub fn cg(
     var converged = false;
     var res_norm: f64 = @sqrt(rho);
 
-    while (iter < options.maxIter) : (iter += 1) {
+    while (iter < max_iter) : (iter += 1) {
         // Ap = A * p
         @memcpy(p_arr.asSlice(f64) catch unreachable, p);
         var Ap_arr = try A.dotVector(p_arr);
@@ -144,7 +152,7 @@ pub fn cg(
         }
 
         res_norm = @sqrt(rho_new);
-        if (res_norm <= threshold) {
+        if (res_norm <= cg_threshold) {
             converged = true;
             iter += 1;
             break;
@@ -167,10 +175,16 @@ pub fn cg(
 }
 
 /// Solves A x = b for general square non-symmetric A using Restarted GMRES.
+///
+/// Inline configuration (all fields optional, may be omitted):
+/// ```zig
+/// num.sparse.gmres(A, b, .{ .tol = 1e-8, .maxIter = 1000, .restart = 30 });
+/// num.sparse.gmres(A, b);
+/// ```
 pub fn gmres(
     A: CsrMatrix,
     b: Array,
-    options: GmresOptions,
+    options: GmresConfig,
 ) (ShapeError || LinalgError || DTypeError || IndexError || std.mem.Allocator.Error)!SparseSolveResult {
     if (A.rows != A.cols) return LinalgError.MatrixNotSquare;
     if (b.ndim != 1 or b.shape_dims[0] != A.rows) return ShapeError.IncompatibleShapes;
@@ -179,12 +193,16 @@ pub fn gmres(
     if (n == 0) return ShapeError.EmptyArray;
 
     const allocator = A.allocator;
-    const m = @min(options.restart, n);
+    const g_max_iter: usize = options.maxIter;
+    const g_tol: f64 = options.tol;
+    const g_restart: usize = options.restart;
+    const g_x0: ?Array = options.x0;
+    const m = @min(g_restart, n);
 
     var x = try zeros(allocator, .{ .shape = &.{n}, .dtype = .f64 });
     errdefer x.deinit();
 
-    if (options.x0) |x0_arr| {
+    if (g_x0) |x0_arr| {
         if (x0_arr.ndim != 1 or x0_arr.shape_dims[0] != n) return ShapeError.IncompatibleShapes;
         for (0..n) |i| {
             try x.setFromFloat(&.{i}, try x0_arr.getAsFloat(&.{i}));
@@ -200,7 +218,7 @@ pub fn gmres(
         b_norm_sq += val * val;
     }
     const b_norm = @sqrt(b_norm_sq);
-    const threshold = options.tol * (if (b_norm > 0) b_norm else 1.0);
+    const gmres_threshold = g_tol * (if (b_norm > 0) b_norm else 1.0);
 
     // Allocate Arnoldi basis: (m + 1) * n
     const V = try allocator.alloc(f64, (m + 1) * n);
@@ -228,7 +246,7 @@ pub fn gmres(
     var converged = false;
     var res_norm: f64 = 0.0;
 
-    while (total_iter < options.maxIter) {
+    while (total_iter < g_max_iter) {
         // r = b - A*x
         var Ax = try A.dotVector(x);
         defer Ax.deinit();
@@ -243,7 +261,7 @@ pub fn gmres(
         }
 
         res_norm = @sqrt(r_norm_sq);
-        if (res_norm <= threshold) {
+        if (res_norm <= gmres_threshold) {
             converged = true;
             break;
         }
@@ -257,7 +275,7 @@ pub fn gmres(
         g[0] = res_norm;
 
         var k: usize = 0;
-        while (k < m and total_iter < options.maxIter) : (k += 1) {
+        while (k < m and total_iter < g_max_iter) : (k += 1) {
             total_iter += 1;
 
             // w = A * v_k
@@ -322,7 +340,7 @@ pub fn gmres(
             g[k] = cs[k] * g[k];
 
             res_norm = @abs(g[k + 1]);
-            if (res_norm <= threshold) {
+            if (res_norm <= gmres_threshold) {
                 k += 1;
                 break;
             }
@@ -351,7 +369,7 @@ pub fn gmres(
             }
         }
 
-        if (res_norm <= threshold) {
+        if (res_norm <= gmres_threshold) {
             converged = true;
             break;
         }

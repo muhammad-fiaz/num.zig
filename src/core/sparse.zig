@@ -117,6 +117,31 @@ pub const CsrMatrix = struct {
 
         return y;
     }
+
+    /// Transposes the matrix, returning the CSC representation.
+    /// A CSR row becomes the corresponding CSC column, so the compressed
+    /// structure transfers directly with swapped dimensions (O(nnz) copy).
+    pub fn transpose(self: CsrMatrix) !CscMatrix {
+        const data = try self.allocator.alloc(f64, self.data.len);
+        errdefer self.allocator.free(data);
+        const indices = try self.allocator.alloc(usize, self.data.len);
+        errdefer self.allocator.free(indices);
+        const indptr = try self.allocator.alloc(usize, self.rows + 1);
+        errdefer self.allocator.free(indptr);
+
+        @memcpy(data, self.data);
+        @memcpy(indices, self.indices);
+        @memcpy(indptr, self.indptr);
+
+        return CscMatrix{
+            .allocator = self.allocator,
+            .rows = self.cols,
+            .cols = self.rows,
+            .data = data,
+            .indices = indices,
+            .indptr = indptr,
+        };
+    }
 };
 
 /// Compressed Sparse Column (CSC) matrix representation.
@@ -201,6 +226,53 @@ pub const CscMatrix = struct {
 
         return arr;
     }
+
+    /// Matrix-vector multiplication: y = A * x via direct column traversal.
+    pub fn dotVector(self: CscMatrix, x: Array) !Array {
+        if (x.ndim != 1 or x.shape_dims[0] != self.cols) return ShapeError.IncompatibleShapes;
+
+        var y = try zeros(self.allocator, .{ .shape = &.{self.rows}, .dtype = .f64 });
+        errdefer y.deinit();
+
+        for (0..self.cols) |c| {
+            const x_val = try x.getAsFloat(&.{c});
+            if (x_val == 0) continue;
+            const start = self.indptr[c];
+            const end = self.indptr[c + 1];
+            for (start..end) |i| {
+                const r = self.indices[i];
+                const cur = try y.getAsFloat(&.{r});
+                try y.setFromFloat(&.{r}, cur + self.data[i] * x_val);
+            }
+        }
+
+        return y;
+    }
+
+    /// Transposes the matrix, returning the CSR representation.
+    /// A CSC column becomes the corresponding CSR row, so the compressed
+    /// structure transfers directly with swapped dimensions (O(nnz) copy).
+    pub fn transpose(self: CscMatrix) !CsrMatrix {
+        const data = try self.allocator.alloc(f64, self.data.len);
+        errdefer self.allocator.free(data);
+        const indices = try self.allocator.alloc(usize, self.data.len);
+        errdefer self.allocator.free(indices);
+        const indptr = try self.allocator.alloc(usize, self.cols + 1);
+        errdefer self.allocator.free(indptr);
+
+        @memcpy(data, self.data);
+        @memcpy(indices, self.indices);
+        @memcpy(indptr, self.indptr);
+
+        return CsrMatrix{
+            .allocator = self.allocator,
+            .rows = self.cols,
+            .cols = self.rows,
+            .data = data,
+            .indices = indices,
+            .indptr = indptr,
+        };
+    }
 };
 
 test "csr and csc matrix roundtrip and matvec" {
@@ -252,4 +324,65 @@ test "csr and csc matrix roundtrip and matvec" {
     defer csc_dense.deinit();
 
     try std.testing.expectEqual(@as(f64, 20.0), try csc_dense.getAsFloat(&.{ 1, 1 }));
+}
+
+test "sparse transpose and CSC matvec" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+
+    const data = [_]f64{
+        1.0, 0.0, 2.0,
+        0.0, 0.0, 3.0,
+    };
+    var dense = try fromSlice(allocator, f64, .{ .data = &data, .shape = &.{ 2, 3 } });
+    defer dense.deinit();
+
+    var csr = try CsrMatrix.fromDense(allocator, dense, 1e-12);
+    defer csr.deinit();
+
+    // CSR -> CSC transpose preserves values: dense^T[r, c] == dense[c, r]
+    var csc_t = try csr.transpose();
+    defer csc_t.deinit();
+    try std.testing.expectEqual(@as(usize, 3), csc_t.rows);
+    try std.testing.expectEqual(@as(usize, 2), csc_t.cols);
+    var t_dense = try csc_t.toDense();
+    defer t_dense.deinit();
+    for (0..2) |r| {
+        for (0..3) |c| {
+            try std.testing.expectEqual(
+                try dense.getAsFloat(&.{ r, c }),
+                try t_dense.getAsFloat(&.{ c, r }),
+            );
+        }
+    }
+
+    // CSC matvec matches CSR matvec
+    const vec = [_]f64{ 1.0, 2.0, 3.0 };
+    var x = try fromSlice(allocator, f64, .{ .data = &vec, .shape = &.{3} });
+    defer x.deinit();
+    var y_csr = try csr.dotVector(x);
+    defer y_csr.deinit();
+    var csc = try CscMatrix.fromDense(allocator, dense, 1e-12);
+    defer csc.deinit();
+    var y_csc = try csc.dotVector(x);
+    defer y_csc.deinit();
+    for (0..2) |i| {
+        try std.testing.expectApproxEqAbs(try y_csr.getAsFloat(&.{i}), try y_csc.getAsFloat(&.{i}), 1e-12);
+    }
+
+    // CSC -> CSR roundtrip preserves transposed values
+    var csr_rt = try csc.transpose();
+    defer csr_rt.deinit();
+    try std.testing.expectEqual(@as(usize, 3), csr_rt.rows);
+    try std.testing.expectEqual(@as(usize, 2), csr_rt.cols);
+    var rt_dense = try csr_rt.toDense();
+    defer rt_dense.deinit();
+    for (0..2) |r| {
+        for (0..3) |c| {
+            try std.testing.expectEqual(
+                try dense.getAsFloat(&.{ r, c }),
+                try rt_dense.getAsFloat(&.{ c, r }),
+            );
+        }
+    }
 }

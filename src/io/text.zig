@@ -13,7 +13,7 @@ const DTypeError = @import("../core/error.zig").DTypeError;
 const IoError = @import("../core/error.zig").IoError;
 const IndexError = @import("../core/error.zig").IndexError;
 
-pub const SaveTxtOptions = struct {
+const SaveTxtOptions = struct {
     delimiter: []const u8 = ",",
     header: []const u8 = "",
     footer: []const u8 = "",
@@ -86,7 +86,7 @@ fn writeScalar(arr: Array, flat_idx: usize, writer: anytype) !void {
     }
 }
 
-pub const LoadTxtOptions = struct {
+const LoadTxtOptions = struct {
     delimiter: []const u8 = ",",
     skipRows: usize = 0,
     dtype: DType = .f64,

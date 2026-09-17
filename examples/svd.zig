@@ -32,4 +32,9 @@ pub fn main() !void {
 
     std.debug.print("Right singular vectors Vt (2x2):\n", .{});
     std.debug.print("  shape: [{d}, {d}]\n", .{ res.vt.shape_dims[0], res.vt.shape_dims[1] });
+
+    // Economy mode: U is (3, 2) instead of (3, 3)
+    var eco = try num.linalg.svd(a, .{ .full_matrices = false });
+    defer eco.deinit();
+    std.debug.print("\nEconomy U shape: [{d}, {d}]\n", .{ eco.u.shape_dims[0], eco.u.shape_dims[1] });
 }

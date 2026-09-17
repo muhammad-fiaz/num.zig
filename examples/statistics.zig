@@ -38,4 +38,18 @@ pub fn main() !void {
     std.debug.print("  25th Pct: {d:.2}\n", .{try p25.get(f64, &.{})});
     std.debug.print("  50th Pct: {d:.2}\n", .{try p50.get(f64, &.{})});
     std.debug.print("  75th Pct: {d:.2}\n", .{try p75.get(f64, &.{})});
+
+    // 4. Min / max / range and nearest-rank quantile method
+    var lo = try num.stats.min(arr, .{});
+    defer lo.deinit();
+    var hi = try num.stats.max(arr, .{});
+    defer hi.deinit();
+    var r = try num.stats.range(arr, .{});
+    defer r.deinit();
+    var qn = try num.stats.quantileWithOptions(arr, 0.5, .{ .method = .nearest });
+    defer qn.deinit();
+    std.debug.print("  Min: {d:.1}, Max: {d:.1}, Range: {d:.1}, Median(nearest): {d:.1}\n", .{
+        try lo.get(f64, &.{}), try hi.get(f64, &.{}),
+        try r.get(f64, &.{}),  try qn.get(f64, &.{}),
+    });
 }

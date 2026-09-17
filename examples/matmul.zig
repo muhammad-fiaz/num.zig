@@ -51,4 +51,31 @@ pub fn main() !void {
         out_prod.shape_dims[1],
         try out_prod.get(f64, &.{ 0, 0 }),
     });
+
+    // Inner product (alias of matmul): scalar 1*4 + 3*(-2) + (-5)*(-1) = 3.0
+    var in_prod = try num.linalg.inner(u, v, .{});
+    defer in_prod.deinit();
+    std.debug.print("Inner product u . v: {d:.1}\n", .{try in_prod.get(f64, &.{})});
+
+    // Kronecker product: (2,3) x (2,3) -> (4,9)
+    var k = try num.linalg.kron(a, a, .{});
+    defer k.deinit();
+    std.debug.print("Kronecker shape: [{d}, {d}], val[0, 0]: {d:.1}\n", .{
+        k.shape_dims[0],
+        k.shape_dims[1],
+        try k.get(f64, &.{ 0, 0 }),
+    });
+
+    // Batched matmul: (2, 2, 3) x (2, 3, 2) -> (2, 2, 2)
+    const ba_data = [_]f64{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+    var ba = try num.fromSlice(allocator, f64, .{ .data = &ba_data, .shape = &.{ 2, 2, 3 } });
+    defer ba.deinit();
+    const bb_data = [_]f64{ 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 };
+    var bb = try num.fromSlice(allocator, f64, .{ .data = &bb_data, .shape = &.{ 2, 3, 2 } });
+    defer bb.deinit();
+    var bc = try num.linalg.matmul(ba, bb, .{});
+    defer bc.deinit();
+    std.debug.print("Batched matmul shape: [{d}, {d}, {d}]\n", .{
+        bc.shape_dims[0], bc.shape_dims[1], bc.shape_dims[2],
+    });
 }

@@ -32,7 +32,8 @@ pub fn main() !void {
 
 ## 2. Sparse Matrix-Vector Multiplication (`dotVector`)
 
-Performs $y = A \cdot x$ in $O(\text{nnz})$ time without expanding zero elements:
+Performs $y = A \cdot x$ in $O(\text{nnz})$ time without expanding zero elements.
+Both formats provide `dotVector` with dedicated row (CSR) and column (CSC) traversal:
 
 ```zig
 var x = try num.ones(allocator, .{ .shape = &.{4}, .dtype = .f64 });
@@ -40,6 +41,15 @@ defer x.deinit();
 
 var y = try sp.dotVector(x);
 defer y.deinit();
+```
+
+## 2b. Transpose
+
+`CsrMatrix.transpose()` returns the `CscMatrix` transpose and vice versa, transferring the compressed structure directly with swapped dimensions:
+
+```zig
+var sp_t = try sp.transpose();
+defer sp_t.deinit();
 ```
 
 ---

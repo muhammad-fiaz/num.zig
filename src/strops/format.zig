@@ -10,7 +10,7 @@ const DType = @import("../core/dtype.zig").DType;
 const Shape = @import("../core/shape.zig").Shape;
 const MAX_RANK = @import("../core/shape.zig").MAX_RANK;
 
-pub const FormatConfig = struct {
+const FormatConfig = struct {
     precision: usize = 4,
     threshold: usize = 1000,
     edge_items: usize = 3,

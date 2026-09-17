@@ -32,6 +32,7 @@ pub const BinaryOp = enum {
 
 pub const UnaryOp = enum {
     negate,
+    positive,
     abs,
     sqrt,
     cbrt,
@@ -69,15 +70,23 @@ pub const UnaryOp = enum {
     exp2,
 };
 
-pub const BinaryOpOptions = struct {
+const BinaryOpOptions = struct {
     dtype: ?DType = null,
 };
 
-pub const UnaryOpOptions = struct {
+const UnaryOpOptions = struct {
     dtype: ?DType = null,
 };
+
+inline fn dtypeFromOptions(options: anytype) ?DType {
+    const T = @TypeOf(options);
+    if (@typeInfo(T) != .@"struct") return null;
+    if (@hasField(T, "dtype")) return options.dtype;
+    return null;
+}
 
 /// Core dispatcher for binary operations between arrays `a` and `b`.
+/// Optional inline config: `.{ .dtype = .f64 }`. May be omitted entirely.
 pub fn binaryOp(
     a: Array,
     b: Array,
@@ -301,36 +310,8 @@ fn writeScalarAt(comptime T: type, arr: Array, offset: isize, val: T) void {
 }
 
 inline fn castValue(comptime DstT: type, comptime SrcT: type, val: SrcT) DstT {
-    if (DstT == SrcT) return val;
-    return switch (@typeInfo(DstT)) {
-        .float => switch (@typeInfo(SrcT)) {
-            .int, .comptime_int => @floatFromInt(val),
-            .float, .comptime_float => @floatCast(val),
-            .bool => if (val) 1.0 else 0.0,
-            else => 0.0,
-        },
-        .int => switch (@typeInfo(SrcT)) {
-            .int, .comptime_int => @intCast(val),
-            .float, .comptime_float => @intFromFloat(val),
-            .bool => if (val) 1 else 0,
-            else => 0,
-        },
-        .bool => switch (@typeInfo(SrcT)) {
-            .bool => val,
-            .int, .comptime_int => val != 0,
-            .float, .comptime_float => val != 0.0,
-            .@"struct" => val.re != 0.0 or val.im != 0.0,
-            else => false,
-        },
-        .@"struct" => switch (@typeInfo(SrcT)) {
-            .@"struct" => .{ .re = @floatCast(val.re), .im = @floatCast(val.im) },
-            .float, .comptime_float => .{ .re = @floatCast(val), .im = 0.0 },
-            .int, .comptime_int => .{ .re = @floatFromInt(val), .im = 0.0 },
-            .bool => .{ .re = if (val) 1.0 else 0.0, .im = 0.0 },
-            else => .{ .re = 0.0, .im = 0.0 },
-        },
-        else => 0,
-    };
+    // Canonical scalar conversion shared via DType (single implementation).
+    return DType.castValue(DstT, SrcT, val);
 }
 
 /// Elementwise addition: `a + b`.
@@ -378,14 +359,19 @@ pub const sub = subtract;
 pub const mul = multiply;
 pub const div = divide;
 pub const rem = remainder;
+pub const mod = remainder;
+pub const power = pow;
+pub const absolute = abs;
+pub const negative = negate;
 
 /// Core dispatcher for unary mathematical functions.
+/// Optional inline config: `.{ .dtype = .f64 }`. May be omitted entirely.
 pub fn unaryOp(
     a: Array,
     comptime op: UnaryOp,
     options: UnaryOpOptions,
 ) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    const target_dtype = options.dtype orelse if (op == .abs or op == .sign or op == .negate)
+    const target_dtype = options.dtype orelse if (op == .abs or op == .sign or op == .negate or op == .positive)
         a.dtype
     else if (a.dtype.isFloat())
         a.dtype
@@ -459,6 +445,7 @@ inline fn applyScalarUnary(comptime T: type, comptime op: UnaryOp, val: T) T {
     switch (@typeInfo(T)) {
         .float => switch (op) {
             .negate => return -val,
+            .positive => return val,
             .abs => return @abs(val),
             .sqrt => return @sqrt(val),
             .cbrt => return std.math.cbrt(val),
@@ -520,8 +507,9 @@ inline fn applyScalarUnary(comptime T: type, comptime op: UnaryOp, val: T) T {
             },
         },
         .int => switch (op) {
-            .negate => return -val,
-            .abs => return if (val < 0) -val else val,
+            .negate => if (@typeInfo(T).int.signedness == .signed) return -val else return 0 -% val,
+            .positive => return val,
+            .abs => if (@typeInfo(T).int.signedness == .signed) return if (val < 0) -val else val else return val,
             .square => return val * val,
             .sign => return if (val > 0) 1 else if (val < 0) -1 else 0,
             .degreesToRadians => return @intFromFloat(std.math.degreesToRadians(@as(f64, @floatFromInt(val)))),
@@ -536,6 +524,11 @@ inline fn applyScalarUnary(comptime T: type, comptime op: UnaryOp, val: T) T {
 
 pub fn negate(a: Array, options: UnaryOpOptions) !Array {
     return unaryOp(a, .negate, options);
+}
+
+/// Unary positive: `+a` (returns a copy preserving dtype).
+pub fn positive(a: Array, options: UnaryOpOptions) !Array {
+    return unaryOp(a, .positive, options);
 }
 
 pub fn abs(a: Array, options: UnaryOpOptions) !Array {
@@ -741,13 +734,12 @@ pub fn clip(
 }
 
 /// Return elements chosen from `x` or `y` depending on boolean `condition`.
+/// Broadcasts all three inputs; dtype is promoted from `x` and `y`.
 pub fn where(
     condition: Array,
     x: Array,
     y: Array,
-    options: struct { dtype: ?DType = null },
 ) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
-    _ = options;
     const bc_xy = try broadcast2(x, y);
     const bc_all = try broadcast2(condition, bc_xy.a);
     const target_shape = bc_all.target_shape;
@@ -833,6 +825,50 @@ test "binary arithmetic and broadcasting" {
     var r_alias = try rem(b, a, .{});
     defer r_alias.deinit();
     try std.testing.expectEqualSlices(f32, try r_canon.asSlice(f32), try r_alias.asSlice(f32));
+
+    var mod_alias = try mod(b, a, .{});
+    defer mod_alias.deinit();
+    try std.testing.expectEqualSlices(f32, try r_canon.asSlice(f32), try mod_alias.asSlice(f32));
+
+    var p_canon = try pow(a, a, .{});
+    defer p_canon.deinit();
+    var p_alias = try power(a, a, .{});
+    defer p_alias.deinit();
+    try std.testing.expectEqualSlices(f32, try p_canon.asSlice(f32), try p_alias.asSlice(f32));
+}
+
+test "positive and absolute/negative aliases" {
+    const allocator = std.testing.allocator;
+    const fromSlice = @import("../core/array.zig").fromSlice;
+    const vals = [_]f64{ -3.0, 0.0, 4.5 };
+    var a = try fromSlice(allocator, f64, .{ .data = &vals, .shape = &.{3} });
+    defer a.deinit();
+
+    var p = try positive(a, .{});
+    defer p.deinit();
+    try std.testing.expectEqualSlices(f64, &.{ -3.0, 0.0, 4.5 }, try p.asSlice(f64));
+
+    var ab1 = try abs(a, .{});
+    defer ab1.deinit();
+    var ab2 = try absolute(a, .{});
+    defer ab2.deinit();
+    try std.testing.expectEqualSlices(f64, try ab1.asSlice(f64), try ab2.asSlice(f64));
+    try std.testing.expectEqualSlices(f64, &.{ 3.0, 0.0, 4.5 }, try ab2.asSlice(f64));
+
+    var n1 = try negate(a, .{});
+    defer n1.deinit();
+    var n2 = try negative(a, .{});
+    defer n2.deinit();
+    try std.testing.expectEqualSlices(f64, try n1.asSlice(f64), try n2.asSlice(f64));
+
+    // integer positive preserves dtype
+    const ivalues = [_]i32{ -2, 5 };
+    var ia = try fromSlice(allocator, i32, .{ .data = &ivalues, .shape = &.{2} });
+    defer ia.deinit();
+    var ip = try positive(ia, .{});
+    defer ip.deinit();
+    try std.testing.expect(ip.dtype == .i32);
+    try std.testing.expectEqualSlices(i32, &.{ -2, 5 }, try ip.asSlice(i32));
 }
 
 test "unary math and clip" {

@@ -91,4 +91,11 @@ pub fn main() !void {
         try cg_sol.x.get(f64, &.{0}),
         try cg_sol.x.get(f64, &.{1}),
     });
+
+    // 5. Sparse transpose: CSR -> CSC preserves values with swapped shape
+    var csr_t = try spd_csr.transpose();
+    defer csr_t.deinit();
+    std.debug.print("\nCSR transpose: [{d}, {d}] -> [{d}, {d}], nnz={d}\n", .{
+        spd_csr.rows, spd_csr.cols, csr_t.rows, csr_t.cols, csr_t.nnz(),
+    });
 }

@@ -15,7 +15,7 @@ pub fn reshape(
     options: struct { shape: []const isize, order: Order = .c },
 ) !Array;
 
-/// Returns a flattened 1D copy in C order.
+/// Returns a flattened 1D view when the array is contiguous, otherwise a flattened copy.
 pub fn ravel(arr: Array) !Array;
 
 /// Returns a contiguous 1D copy, always allocating.
@@ -43,18 +43,22 @@ pub fn atleast3d(arr: Array) !Array;
 ## Index Utilities
 
 ```zig
-/// Convert a flat linear index to N-dimensional indices.
+/// Convert flat linear indices to an [n, ndim] coordinate array (dtype .i64).
 pub fn unravelIndex(
-    index: usize,
-    shape: []const usize,
-    options: struct { order: Order = .c },
-) ![]usize;
+    allocator: std.mem.Allocator,
+    flat_indices: []const usize,
+    dims: []const usize,
+) !Array;
 
-/// Convert N-dimensional indices to a flat linear index.
-pub fn ravelIndex(indices: []const usize, shape: []const usize, options: struct { order: Order = .c }) usize;
+/// Convert an [n, ndim] coordinate array to flat linear indices.
+pub fn ravelIndex(
+    allocator: std.mem.Allocator,
+    coords: Array,
+    dims: []const usize,
+) !Array;
 
-/// Generate an open mesh of indices for a given shape.
-pub fn indices(allocator: std.mem.Allocator, shape: []const usize) ![]Array;
+/// Generate a single Array of grid coordinates of shape [ndim, ...dims] (dtype .i64).
+pub fn indices(allocator: std.mem.Allocator, dims: []const usize) !Array;
 ```
 
 ---
@@ -99,12 +103,27 @@ pub fn concat(arrays: []const Array, options: struct { axis: isize = 0 }) !Array
 /// Stack arrays along a new axis.
 pub fn stack(arrays: []const Array, options: struct { axis: isize = 0 }) !Array;
 
+/// Stack 1D arrays in sequence (axis 0) or join higher-rank arrays along axis 1.
+pub fn hstack(arrays: []const Array) !Array;
+
+/// Promote 1D inputs to rows with `atleast2d` and join along axis 0.
+pub fn vstack(arrays: []const Array) !Array;
+
 /// Split an array into equal parts along an axis.
 pub fn split(
     allocator: std.mem.Allocator,
     arr: Array,
     options: struct { parts: usize, axis: isize = 0 },
 ) ![]Array;
+
+/// Append values to an array (flattened when axis is null, else along the axis).
+pub fn append(arr: Array, values: Array, options: struct { axis: ?isize = null }) !Array;
+
+/// Insert values at an index along an axis (flattened when axis is null).
+pub fn insert(arr: Array, index: usize, values: Array, options: struct { axis: ?isize = null }) !Array;
+
+/// Delete the entry at an index along an axis (flattened when axis is null).
+pub fn delete(arr: Array, index: usize, options: struct { axis: ?isize = null }) !Array;
 ```
 
 ---
@@ -118,7 +137,8 @@ pub fn tile(arr: Array, options: struct { reps: []const usize }) !Array;
 /// Repeat elements of an array.
 pub fn repeat(arr: Array, options: struct { repeats: usize, axis: ?isize = null }) !Array;
 
-/// Pad array with a constant value. `pad_width[i] = [before, after]` per axis.
+/// Pad array per `pad_width[i] = [before, after]` with `mode` (.constant, .edge, .reflect).
 pub fn pad(arr: Array, options: anytype) !Array;
+pub const PadMode = enum { constant, edge, reflect };
 ```
 
