@@ -118,34 +118,12 @@ Aliases are implemented as thin compile-time re-exports (`pub const sub = subtra
 
 ## Integer Bitwise Operations
 
-Integer dtypes only with broadcasting. Floating-point, boolean, and complex inputs return `DTypeError.UnsupportedDType`.
-
-```zig
-pub fn bitwiseAnd(a: Array, b: Array) !Array;
-pub fn bitwiseOr(a: Array, b: Array) !Array;
-pub fn bitwiseXor(a: Array, b: Array) !Array;
-pub fn bitwiseNot(a: Array) !Array;
-pub fn leftShift(a: Array, b: Array) !Array;
-pub fn rightShift(a: Array, b: Array) !Array;
-pub fn bitCount(a: Array) !Array;
-pub fn clz(a: Array) !Array;       // leading-zero count; alias: leadingZeros
-pub fn ctz(a: Array) !Array;       // trailing-zero count; alias: trailingZeros
-pub const popcount = bitCount;
-```
+See the [Bitwise Operations](/api/bitwise) reference for integer-only broadcast operations (`bitwiseAnd`, `bitwiseOr`, `bitwiseXor`, `bitwiseNot`, `leftShift`, `rightShift`) and population utilities (`bitCount`, `clz`, `ctz`).
 
 ---
 
 ## Complex Helpers
 
-Complex dtypes (`c64`, `c128`) only. Comparisons and ordering on complex arrays are unsupported.
-
-```zig
-pub fn conj(a: Array) !Array;        // alias: conjugate; preserves dtype
-pub fn conjTranspose(a: Array) !Array; // 2D Hermitian transpose; returns owned data
-pub fn real(a: Array) !Array;        // c64 -> f32, c128 -> f64
-pub fn imag(a: Array) !Array;        // c64 -> f32, c128 -> f64
-pub fn magnitude(a: Array) !Array;   // |z|, c64 -> f32, c128 -> f64
-pub fn phase(a: Array) !Array;       // arg(z) in radians
-```
+See the [Complex Helpers](/api/complex) reference for `conj`/`conjugate`, `conjTranspose`, `real`, `imag`, `magnitude`, and `phase`.
 
 

@@ -28,7 +28,7 @@ features:
   - title: Multi-Threaded CPU Parallelism
     details: Deterministic data-parallel engine with inline configuration, automatic core detection, sequential fallback, and nested parallelism protection.
   - title: Fast Fourier Transform & Sparse
-    details: Radix-2 Cooley-Tukey FFT/IFFT with complex spectra, plus CSR/CSC sparse matrices with iterative Conjugate Gradient and GMRES solvers.
+    details: 1D/2D Radix-2 Cooley-Tukey FFT/IFFT with complex spectra, plus CSR/CSC sparse matrices with transpose support and iterative Conjugate Gradient and GMRES solvers.
   - title: Native NZIG v1.0 Serialization
     details: Portable, 64-byte aligned, deterministic binary array file format independent of host CPU ABI and endianness.
 ---

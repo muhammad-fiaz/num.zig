@@ -2,74 +2,89 @@
 
 `num.zig` is distributed as a standard Zig package and works with Zig 0.16.0.
 
+> [!WARNING]
+> Zig **0.15** is deprecated. New projects should use **Zig 0.16.0+** with **num.zig v0.0.3**.
+
 ---
 
-## 1. Adding to `build.zig.zon`
+## Method 1: Zig Fetch (Recommended)
 
-In your project directory, fetch `num.zig` directly:
+**Latest Release (v0.0.3)**
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz
+```
+
+**Previous Releases (v0.0.2, v0.0.1)**
+
+```bash
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.2.tar.gz
+```
+
+---
+
+## Method 2: Zig Fetch (Latest Development Build)
+
+Use this for the latest development build from the `main` branch:
 
 ```bash
 zig fetch --save git+https://github.com/muhammad-fiaz/num.zig.git
 ```
 
-This will automatically populate your `build.zig.zon`:
+---
+
+## Method 3: Manual `build.zig.zon` Configuration
 
 ```zig
-.{
-    .name = .my_project,
-    .version = "0.1.0",
-    .fingerprint = 0x12345678,
-    .dependencies = .{
-        .num = .{
-            .url = "git+https://github.com/muhammad-fiaz/num.zig.git#<commit-hash>",
-            .hash = "...",
-        },
+.dependencies = .{
+    .num = .{
+        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz",
+        .hash = "...", // Run `zig fetch --save <url>` to generate the hash automatically.
     },
-    .paths = .{""},
-}
+},
 ```
 
 ---
 
-## 2. Importing into `build.zig`
-
-Add the `num` module import to your executable or library in `build.zig`:
-
-```zig
-const std = @import("std");
-
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-
-    const num_dep = b.dependency("num", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const exe = b.addExecutable(.{
-        .name = "my_app",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-
-    exe.root_module.addImport("num", num_dep.module("num"));
-    b.installArtifact(exe);
-}
-```
-
----
-
-## 3. Verifying Local Installation
-
-You can clone and test `num.zig` directly:
+## Method 4: Local Source Checkout
 
 ```bash
 git clone https://github.com/muhammad-fiaz/num.zig.git
 cd num.zig
 zig build test
-zig build test-all
+```
+
+To use a local checkout from another project:
+
+```zig
+.dependencies = .{
+    .num = .{
+        .path = "../num.zig",
+    },
+},
+```
+
+---
+
+## Wire into `build.zig`
+
+Add the `num` module import to your executable or library in `build.zig`:
+
+```zig
+const num_dep = b.dependency("num", .{
+    .target = target,
+    .optimize = optimize,
+});
+exe.root_module.addImport("num", num_dep.module("num"));
+```
+
+---
+
+## Verifying the Installation
+
+Run the test suite and examples to confirm everything works:
+
+```bash
+zig build test
+zig build run-array_creation
 ```

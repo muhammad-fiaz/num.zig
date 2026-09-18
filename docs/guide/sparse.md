@@ -33,7 +33,7 @@ pub fn main() !void {
 ## 2. Sparse Matrix-Vector Multiplication (`dotVector`)
 
 Performs $y = A \cdot x$ in $O(\text{nnz})$ time without expanding zero elements.
-Both formats provide `dotVector` with dedicated row (CSR) and column (CSC) traversal:
+Both formats provide `dotVector` with row-based (CSR) and column-based (CSC) traversal:
 
 ```zig
 var x = try num.ones(allocator, .{ .shape = &.{4}, .dtype = .f64 });

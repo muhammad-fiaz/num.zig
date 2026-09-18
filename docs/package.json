@@ -1,6 +1,6 @@
 {
   "name": "num-zig-docs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Documentation for num.zig",
   "scripts": {
     "docs:dev": "vitepress dev",

@@ -104,3 +104,32 @@ defer mag.deinit();
 var ph = try num.ops.phase(z);
 defer ph.deinit();
 ```
+
+---
+
+## 7. Comparisons & Logical Operations
+
+Broadcasting comparisons return boolean arrays; logical operators combine them.
+See the [Comparisons & Logic API](/api/compare) for full signatures:
+
+```zig
+var eq = try num.ops.equal(a, b);
+defer eq.deinit();
+var lt = try num.ops.less(a, b);
+defer lt.deinit();
+var both = try num.ops.logicalAnd(eq, lt);
+defer both.deinit();
+var either = try num.ops.logicalOr(eq, lt);
+defer either.deinit();
+var negated = try num.ops.logicalNot(eq);
+defer negated.deinit();
+
+// Floating-point predicates and tolerance checks
+var nan_mask = try num.ops.isNaN(a);
+defer nan_mask.deinit();
+var finite_mask = try num.ops.isFinite(a);
+defer finite_mask.deinit();
+var close = try num.ops.isClose(a, b, .{ .rtol = 1e-5, .atol = 1e-8 });
+defer close.deinit();
+const all_close = try num.ops.allClose(a, b, .{});
+```
