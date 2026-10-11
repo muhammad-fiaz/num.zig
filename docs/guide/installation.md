@@ -12,7 +12,7 @@
 **Latest Stable Release (v0.0.4)**
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/0.0.4.tar.gz
 ```
 
 ---
@@ -32,7 +32,7 @@ zig fetch --save git+https://github.com/muhammad-fiaz/num.zig.git
 ```zig
 .dependencies = .{
     .num = .{
-        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/0.0.4.tar.gz",
         .hash = "...", // Run `zig fetch --save <url>` to generate the hash automatically.
     },
 },
