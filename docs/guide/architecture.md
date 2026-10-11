@@ -1,6 +1,6 @@
 # Architecture & Small-Buffer Optimization (SBO)
 
-`num.zig` is engineered from the ground up for high-performance numerical computing in Zig 0.16.0. It prioritizes memory efficiency, cache locality, explicit allocation semantics, and zero-overhead abstractions.
+`num.zig` is engineered from the ground up for high-performance numerical computing in Zig 0.17.0. It prioritizes memory efficiency, cache locality, explicit allocation semantics, and zero-overhead abstractions.
 
 ---
 

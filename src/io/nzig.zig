@@ -88,7 +88,7 @@ pub fn writeToStream(
     arr: Array,
     writer: anytype,
 ) !void {
-    var header = [_]u8{0} ** HEADER_SIZE;
+    var header: [HEADER_SIZE]u8 = @splat(0);
 
     // 0..7: NZIG file signature
     @memcpy(header[0..8], &MAGIC);
@@ -105,7 +105,7 @@ pub fn writeToStream(
     std.mem.writeInt(u16, header[12..14], dtype_id, .little);
 
     // 14: Byte order (0 = little-endian, 1 = big-endian)
-    const host_is_big = (builtin.cpu.arch.endian() == .big);
+    const host_is_big = (builtin.target.cpu.arch.endian() == .big);
     header[14] = if (host_is_big) 1 else 0;
 
     // 15: Memory order (0 = C-order / row-major)
@@ -260,7 +260,7 @@ pub fn readFromStream(
         }
 
         // 11. Handle endianness conversion if file byte order != host CPU byte order
-        const host_is_big: u8 = if (builtin.cpu.arch.endian() == .big) 1 else 0;
+        const host_is_big: u8 = if (builtin.target.cpu.arch.endian() == .big) 1 else 0;
         if (file_byte_order != host_is_big) {
             swapEndianness(dest, elem_size);
         }
@@ -540,7 +540,7 @@ test "NZIG deterministic output bytes" {
 test "NZIG corruption tests: bad magic, version, flags, dtype, rank, payload" {
     const allocator = std.testing.allocator;
 
-    var valid_hdr = [_]u8{0} ** HEADER_SIZE;
+    var valid_hdr: [HEADER_SIZE]u8 = @splat(0);
     @memcpy(valid_hdr[0..8], &MAGIC);
     valid_hdr[8] = VERSION_MAJOR;
     valid_hdr[9] = VERSION_MINOR;

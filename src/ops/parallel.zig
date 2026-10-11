@@ -1,6 +1,6 @@
 //! High-performance CPU parallel execution subsystem for num.zig.
 //!
-//! Provides deterministic data-parallel partitioning using native Zig 0.16.0 `std.Thread`
+//! Provides deterministic data-parallel partitioning using native Zig 0.17.0 `std.Thread`
 //! with automatic sequential fallback for small workloads, explicit inline caller control,
 //! nested parallelism protection, and safe resource cleanup.
 
@@ -174,7 +174,7 @@ test "parallel.run automatic and sequential fallback" {
     try std.testing.expectEqual(@as(i32, 42), one_elem[0]);
 
     // Explicit workers = 1
-    var data10 = [_]u32{0} ** 10;
+    var data10: [10]u32 = @splat(0);
     const Ctx10 = struct { slice: []u32 };
     run(10, Ctx10{ .slice = &data10 }, struct {
         fn kernel(c: Ctx10, start: usize, end: usize) void {
@@ -291,7 +291,7 @@ test "parallel.run tree reduction pattern" {
     for (0..N) |i| data[i] = 1.0;
 
     const num_workers: usize = 4;
-    var partial_sums = [_]f64{0.0} ** num_workers;
+    var partial_sums: [num_workers]f64 = @splat(0.0);
 
     const ReduceCtx = struct {
         input: []const f64,

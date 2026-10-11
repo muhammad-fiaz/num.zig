@@ -28,7 +28,7 @@ pub fn formatArray(
         return;
     }
 
-    var coords: [MAX_RANK]usize = [_]usize{0} ** MAX_RANK;
+    var coords: [MAX_RANK]usize = @splat(0);
     try printSubarray(arr, 0, &coords, writer, config);
 }
 

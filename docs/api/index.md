@@ -1,6 +1,6 @@
 # API Overview
 
-Welcome to the `num.zig` API reference. `num.zig` provides a comprehensive, type-safe API for numerical arrays and scientific computing in Zig 0.16.0.
+Welcome to the `num.zig` API reference. `num.zig` provides a comprehensive, type-safe API for numerical arrays and scientific computing in Zig 0.17.0.
 
 ---
 

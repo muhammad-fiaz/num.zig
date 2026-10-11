@@ -54,8 +54,8 @@ pub fn concat(
         .dtype = promoted_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (promoted_dtype == tag) {
             const T = tag.toType();
             var axis_offset: usize = 0;
@@ -188,13 +188,13 @@ pub fn tile(
     const max_ndim = @max(s.ndim, @as(u8, @intCast(options.reps.len)));
     if (max_ndim > MAX_RANK) return ShapeError.RankExceeded;
 
-    var in_dims = [_]usize{1} ** MAX_RANK;
+    var in_dims: [MAX_RANK]usize = @splat(1);
     const lead = max_ndim - s.ndim;
     for (0..s.ndim) |i| {
         in_dims[lead + i] = s.dims[i];
     }
 
-    var rep_dims = [_]usize{1} ** MAX_RANK;
+    var rep_dims: [MAX_RANK]usize = @splat(1);
     const rep_lead = max_ndim - @as(u8, @intCast(options.reps.len));
     for (0..options.reps.len) |i| {
         rep_dims[rep_lead + i] = options.reps[i];
@@ -211,8 +211,8 @@ pub fn tile(
         .dtype = arr.dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
 
@@ -256,8 +256,8 @@ pub fn repeat(
             .dtype = arr.dtype,
         });
 
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (arr.dtype == tag) {
                 const T = tag.toType();
                 var out_idx: usize = 0;
@@ -288,8 +288,8 @@ pub fn repeat(
         .dtype = arr.dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
 
@@ -315,8 +315,8 @@ pub fn repeat(
 }
 
 fn readAndCast(comptime TargetT: type, arr: Array, offset: isize) TargetT {
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));

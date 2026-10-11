@@ -102,8 +102,8 @@ pub fn binaryOp(
         .dtype = target_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (target_dtype == tag) {
             const T = tag.toType();
             try executeBinaryKernel(T, op, bc.a, bc.b, out);
@@ -290,8 +290,8 @@ inline fn applyScalarBinary(comptime T: type, comptime op: BinaryOp, a: T, b: T)
 }
 
 fn readScalarAt(comptime TargetT: type, arr: Array, offset: isize) TargetT {
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));
@@ -383,8 +383,8 @@ pub fn unaryOp(
         .dtype = target_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (target_dtype == tag) {
             const T = tag.toType();
             try executeUnaryKernel(T, op, a, out);
@@ -685,8 +685,8 @@ pub fn clip(
     options: anytype,
 ) (ShapeError || DTypeError || std.mem.Allocator.Error)!Array {
     var out = try a.clone();
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out.dtype == tag) {
             const T = tag.toType();
             if (T == bool) return out;
@@ -750,8 +750,8 @@ pub fn where(
         .dtype = target_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (target_dtype == tag) {
             const T = tag.toType();
 

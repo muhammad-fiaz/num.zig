@@ -72,7 +72,7 @@ pub fn conjTranspose(a: Array) (ShapeError || DTypeError || std.mem.Allocator.Er
 const ComplexUnaryKind = enum { re, im, magnitude, phase };
 
 /// Single canonical complex-to-float traversal shared by real/imag/magnitude/phase.
-/// Uses `std.math.hypot` and `std.math.atan2` (verified Zig 0.16.0 APIs) with a
+/// Uses `std.math.hypot` and `std.math.atan2` (verified Zig 0.17.0 APIs) with a
 /// contiguous fast path and a stride-aware fallback.
 fn mapComplexToFloat(a: Array, comptime kind: ComplexUnaryKind, out: Array) void {
     if (a.dtype == .c64) {

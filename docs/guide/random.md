@@ -1,6 +1,6 @@
 # Random Number Generation (`num.random`)
 
-The `num.random` module provides a seedable `Prng` wrapping Zig 0.16.0 `std.Random.DefaultPrng` (verified in the local `std`) plus distribution samplers reusing `std.Random` primitives (`float`, `floatNorm`, `intRangeLessThan`, `shuffle`). There is no shared global RNG state; pass an explicit `*Prng` for reproducibility or `null` for a thread-local counter-seeded fallback.
+The `num.random` module provides a seedable `Prng` wrapping Zig 0.17.0 `std.Random.DefaultPrng` (verified in the local `std`) plus distribution samplers reusing `std.Random` primitives (`float`, `floatNorm`, `intRangeLessThan`, `shuffle`). There is no shared global RNG state; pass an explicit `*Prng` for reproducibility or `null` for a thread-local counter-seeded fallback.
 
 ---
 

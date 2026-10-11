@@ -17,7 +17,7 @@
 
 ## Verification & Testing
 
-- [ ] `zig build test` passes on Zig 0.16.0
+- [ ] `zig build test` passes on Zig 0.17.0
 - [ ] `zig build run-all-examples` passes with zero errors
 - [ ] `zig fmt --check src/ bench/ examples/ build.zig` passes cleanly
 - [ ] New unit tests have been added where appropriate

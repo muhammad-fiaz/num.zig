@@ -13,9 +13,7 @@ const std = @import("std");
 const num = @import("num");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = std.heap.page_allocator;
 
     // 1D Vector
     const vec_data = [_]f64{ 1.0, 2.0, 3.0, 4.0 };

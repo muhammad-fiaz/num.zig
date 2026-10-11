@@ -1,12 +1,12 @@
 # Getting Started with num.zig
 
-`num.zig` is a modern, production-ready, pure Zig numerical computing library targeting **Zig 0.16.0**. It provides multidimensional array primitives with Small Buffer Optimization (SBO), vectorized SIMD kernels, comprehensive linear algebra, FFT, statistical routines, pseudo-random distributions, multi-threaded CPU parallel execution, and the portable NZIG v1.0 binary array format.
+`num.zig` is a modern, production-ready, pure Zig numerical computing library targeting **Zig 0.17.0**. It provides multidimensional array primitives with Small Buffer Optimization (SBO), vectorized SIMD kernels, comprehensive linear algebra, FFT, statistical routines, pseudo-random distributions, multi-threaded CPU parallel execution, and the portable NZIG v1.0 binary array format.
 
 ---
 
 ## Key Features
 
-- **Pure Zig 0.16.0**: Zero C/C++ or external dependencies.
+- **Pure Zig 0.17.0**: Zero C/C++ or external dependencies.
 - **Small Buffer Optimization (SBO)**: Zero-allocation views for operations altering shapes and strides (e.g., `reshape`, `transpose`, `swapAxes`, `squeeze`, `expandDims`, `slice`).
 - **Explicit Memory Discipline**: Clean allocator ownership. `deinit()` frees owned arrays while acting as a safe no-op on borrowed views.
 - **Strong Compile-Time & Runtime Typing**: 12 fundamental numeric types plus complex numbers (`c64`, `c128`) with deterministic promotion rules.

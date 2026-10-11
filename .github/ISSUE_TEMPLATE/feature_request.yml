@@ -45,5 +45,5 @@ body:
       options:
         - label: I have searched existing issues and discussions to ensure this feature hasn't already been requested.
           required: true
-        - label: I understand this project strictly follows Zig idioms (explicit allocators, zero hidden allocations, Zig 0.16.0 compatibility).
+        - label: I understand this project strictly follows Zig idioms (explicit allocators, zero hidden allocations, Zig 0.17.0 compatibility).
           required: true

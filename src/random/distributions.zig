@@ -51,8 +51,8 @@ pub fn uniform(
     const r = prng.random();
     const range = options.high - options.low;
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (options.dtype == tag) {
             const T = tag.toType();
             const slice = out.asSlice(T) catch unreachable;
@@ -114,8 +114,8 @@ pub fn normal(
     var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (options.dtype == tag) {
             const T = tag.toType();
             const slice = out.asSlice(T) catch unreachable;
@@ -181,8 +181,8 @@ pub fn integers(
     var prng = resolvePrng(options.rng, &fallback);
     const r = prng.random();
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (options.dtype == tag) {
             const T = tag.toType();
             const slice = out.asSlice(T) catch unreachable;
@@ -231,8 +231,8 @@ pub fn choice(
         var out = try empty(allocator, .{ .shape = &.{}, .dtype = arr.dtype });
         errdefer out.deinit();
 
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (arr.dtype == tag) {
                 const T = tag.toType();
                 const val = try arr.get(T, &.{idx});
@@ -251,8 +251,8 @@ pub fn choice(
     var out = try empty(allocator, .{ .shape = &.{k}, .dtype = arr.dtype });
     errdefer out.deinit();
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
             const out_slice = out.asSlice(T) catch unreachable;
@@ -304,8 +304,8 @@ pub fn shuffle(
     const r = prng.random();
 
     if (s.ndim == 1 and arr.isContiguous()) {
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (arr.dtype == tag) {
                 const T = tag.toType();
                 const slice = arr.asSlice(T) catch unreachable;

@@ -40,7 +40,7 @@ pub const DType = enum {
 };
 ```
 
-Complex element types reuse Zig 0.16.0 `std.math.Complex(f32)` (`c64`) and `std.math.Complex(f64)` (`c128`), verified in the local `std`.
+Complex element types reuse Zig 0.17.0 `std.math.Complex(f32)` (`c64`) and `std.math.Complex(f64)` (`c128`), verified in the local `std`.
 
 ---
 

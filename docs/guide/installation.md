@@ -1,29 +1,23 @@
 # Installation & Package Configuration
 
-`num.zig` is distributed as a standard Zig package and works with Zig 0.16.0.
+`num.zig` is distributed as a standard Zig package and works with Zig 0.17.0.
 
 > [!WARNING]
-> Zig **0.15** is deprecated. New projects should use **Zig 0.16.0+** with **num.zig v0.0.3**.
+> Zig **0.16** is deprecated. New projects should use **Zig 0.17.0+** with **num.zig v0.0.4**.
 
 ---
 
-## Method 1: Zig Fetch (Recommended)
+## Method 1: Stable Installation (Recommended)
 
-**Latest Release (v0.0.3)**
-
-```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz
-```
-
-**Previous Releases (v0.0.2, v0.0.1)**
+**Latest Stable Release (v0.0.4)**
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.2.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz
 ```
 
 ---
 
-## Method 2: Zig Fetch (Latest Development Build)
+## Method 2: Nightly Installation (Latest Development Build)
 
 Use this for the latest development build from the `main` branch:
 
@@ -38,7 +32,7 @@ zig fetch --save git+https://github.com/muhammad-fiaz/num.zig.git
 ```zig
 .dependencies = .{
     .num = .{
-        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz",
         .hash = "...", // Run `zig fetch --save <url>` to generate the hash automatically.
     },
 },

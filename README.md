@@ -3,7 +3,7 @@
 <div align="center">
 
 <a href="https://muhammad-fiaz.github.io/num.zig/"><img src="https://img.shields.io/badge/docs-muhammad--fiaz.github.io-blue" alt="Documentation"></a>
-<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
+<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.17.0-orange.svg?logo=zig" alt="Zig Version"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/num.zig" alt="GitHub stars"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/num.zig" alt="GitHub issues"></a>
 <a href="https://github.com/muhammad-fiaz/num.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/num.zig" alt="GitHub pull requests"></a>
@@ -29,7 +29,7 @@
 `num.zig` is a modern, native numerical computing library for Zig, providing high-performance N-dimensional arrays, vectorized SIMD math, linear algebra, statistics, pseudo-random number distributions, sorting, polynomial analysis, and portable **NZIG v1.0** binary array serialization.
 
 > [!IMPORTANT]
-> **v0.0.3 is the current release.** It completes the production multidimensional array system with robust shape/stride handling, full broadcasting, views, elementwise math, bitwise and complex helpers, reductions, statistics, sorting, linear algebra, FFT, random generation, polynomials with root finding, sparse matrices with inline-configured iterative solvers, parallel execution via `num.parallel.run`, SIMD kernels, and portable NZIG v1.0 serialization. If you are migrating from v0.0.2, review the updated clean namespace usage below (`num.ops`, `num.linalg`, `num.poly`, `num.manip`). The project is in active development and contributions are welcome.
+> **v0.0.4 is the current release.** It targets Zig 0.17.0 as its minimum supported compiler version, migrating array initialization to `@splat`, enum conversions to `@fromBackingInt`, dtype dispatch to `@typeInfo` struct-of-arrays reflection, and target queries to `builtin.target`. It completes the production multidimensional array system with robust shape/stride handling, full broadcasting, views, elementwise math, bitwise and complex helpers, reductions, statistics, sorting, linear algebra, FFT, random generation, polynomials with root finding, sparse matrices with inline-configured iterative solvers, parallel execution via `num.parallel.run`, SIMD kernels, and portable NZIG v1.0 serialization. The project is in active development and contributions are welcome.
 
 > [!TIP]
 > If you build with num.zig, make sure to give it a star!
@@ -81,7 +81,7 @@
 | **Spectral & Decompositions** | General eigenvalue & eigenvector solver (`eig`, `eigvals`) via Hessenberg reduction and QR iteration, and Singular Value Decomposition (`svd`) via Golub-Kahan bidiagonalization with full and economy (`full_matrices = false`) modes. |
 | **Fast Fourier Transform (`num.fft`)** | 1D (`fft`, `ifft`) and 2D (`fft2`, `ifft2`) Fast Fourier Transforms with Radix-2 Cooley-Tukey and direct DFT fallback, supporting complex inputs and backward/ortho/forward normalizations. |
 | **Sparse Matrices & Solvers (`num.sparse`)** | Compressed Sparse Row (`CsrMatrix`) and Compressed Sparse Column (`CscMatrix`) formats with memory-efficient storage, matrix-vector multiplication, transpose, dense roundtripping, and inline-configured iterative solvers: Conjugate Gradient (`cg`) and Restarted GMRES (`gmres`), e.g. `num.sparse.cg(A, b, .{ .tol = 1e-8, .maxIter = 1000 })`. |
-| **Parallel CPU Execution (`num.parallel`)** | Deterministic data-parallel engine (`run`) utilizing native Zig 0.16.0 `std.Thread` with automatic CPU core count detection, inline configuration (`.{ .workers, .chunkSize }`), and sequential fallback for small workloads. |
+| **Parallel CPU Execution (`num.parallel`)** | Deterministic data-parallel engine (`run`) utilizing native Zig 0.17.0 `std.Thread` with automatic CPU core count detection, inline configuration (`.{ .workers, .chunkSize }`), and sequential fallback for small workloads. |
 | **Reductions (`num.reduce`)** | Reductions along global and specific axes with `keepDims` and negative axes: `sum`, `prod`, `mean`, `median`, `variance`, `stdDev`, `min`, `max`, `argmin`, `argmax`, `all`, `any`, `countNonzero`, `cumsum`, `cumprod`, `cummin`, `cummax`, and `diff`. |
 | **Sorting & Searching (`num.sort`)** | In-place and copy quicksort, `argsort` permutation generation, binary search (`searchSorted`), distinct value extraction (`unique`), linear index filtering (`flatNonzero`, `nonzero`, `argwhere`), set operations (`intersect1d`, `union1d`, `setdiff1d`, `isin`), and coordinate utilities (`ravelIndex`, `unravelIndex`, `indices`). |
 | **Polynomial Calculus (`num.poly`)** | Horner's method evaluation (`poly.val`), least-squares polynomial curve fitting (`poly.fit`), polynomial derivatives (`poly.der`), indefinite integration (`poly.integ`), root finding (`poly.roots` with analytic linear/quadratic and Durand-Kerner general solver), and coefficient arithmetic (`poly.add`, `poly.sub`, `poly.mul`). |
@@ -102,11 +102,11 @@
 
 | Requirement | Version | Notes |
 |---|---|---|
-| **Zig** | **0.16.0** (recommended) | Download from [ziglang.org](https://ziglang.org/download/) |
+| **Zig** | **0.17.0** (recommended) | Download from [ziglang.org](https://ziglang.org/download/) |
 | **Operating System** | Windows 10+, Linux, macOS | Cross-platform numerical computing |
 
 > [!IMPORTANT]
-> **Zig 0.16.0 is required.** This project targets the stable Zig 0.16.0 release and uses standard library conventions without deprecated GeneralPurposeAllocator patterns.
+> **Zig 0.17.0 is required.** This project targets the stable Zig 0.17.0 release and uses current standard library conventions (`@splat`, `@fromBackingInt`, `@typeInfo` reflection, `std.Io`, unmanaged `ArrayList`). Library v0.0.3 remains the Zig 0.16.0 compatibility line.
 
 ---
 
@@ -140,24 +140,18 @@ zig build -Dtarget=x86-windows
 
 ## Installation
 
-### Method 1: Zig Fetch (Recommended)
+### Method 1: Stable Installation (Recommended)
 
-**Latest Release (v0.0.3)**
-
-```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz
-```
-
-**Previous Releases (v0.0.2, v0.0.1)**
+**Latest Stable Release (v0.0.4)**
 
 ```bash
-zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.2.tar.gz
+zig fetch --save https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz
 ```
 
 > [!WARNING]
-> Zig **0.15** is deprecated. New projects should use **Zig 0.16.0+** with **num.zig v0.0.3**.
+> Zig **0.16** is deprecated. New projects should use **Zig 0.17.0+** with **num.zig v0.0.4**.
 
-### Method 2: Zig Fetch (Latest Development Build)
+### Method 2: Nightly Installation (Latest Development Build)
 
 Use this for the latest development build from the `main` branch:
 
@@ -170,7 +164,7 @@ zig fetch --save git+https://github.com/muhammad-fiaz/num.zig.git
 ```zig
 .dependencies = .{
     .num = .{
-        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.3.tar.gz",
+        .url = "https://github.com/muhammad-fiaz/num.zig/archive/refs/tags/v0.0.4.tar.gz",
         .hash = "...", // Run `zig fetch --save <url>` to generate the hash automatically.
     },
 },
@@ -423,7 +417,7 @@ zig build run-all-examples
 ## Validation Matrix
 
 ```bash
-# Run complete test suite (v0.0.3 unit tests)
+# Run complete test suite (v0.0.4 unit tests)
 zig build test
 
 # Run tests, benchmarks, and all runnable examples sequentially
@@ -447,7 +441,7 @@ Run benchmarks:
 zig build bench
 ```
 
-Benchmark target: `x86_64-windows`, `ReleaseFast` (measured with stable Zig 0.16.0):
+Benchmark target: `x86_64-windows`, `ReleaseFast` (representative results; re-run `zig build bench` with stable Zig 0.17.0 to reproduce):
 
 | Benchmark | Category | Performance / Throughput | Notes |
 |:---|:---|:---:|:---|
@@ -567,7 +561,7 @@ num.zig/
 │   └── serialization.zig            # NZIG binary file read and write
 ├── bench/
 │   └── benchmark.zig                # Performance benchmark suite
-├── build.zig                        # Zig 0.16.0 build system configuration
+├── build.zig                        # Zig 0.17.0 build system configuration
 ├── build.zig.zon                    # Zig package metadata
 ├── README.md                        # Documentation and user guide
 ├── LICENSE                          # MIT license
