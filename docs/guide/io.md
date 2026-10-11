@@ -10,7 +10,7 @@ The `NZIG` format is a fast, cross-platform binary serialization standard for N-
 
 ### Header Specification
 
-The binary header is exactly 128 bytes, 64-byte aligned, using `std.mem.writeInt` / `std.mem.readInt` little-endian encoding (verified against Zig 0.16.0 `std`):
+The binary header is exactly 128 bytes, 64-byte aligned, using `std.mem.writeInt` / `std.mem.readInt` little-endian encoding (verified against Zig 0.17.0 `std`):
 
 | Offset | Size | Description |
 | :--- | :--- | :--- |

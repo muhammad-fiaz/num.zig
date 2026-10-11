@@ -11,7 +11,7 @@ pub fn main() !void {
     defer a.deinit();
 
     const num_workers: usize = 4;
-    var partial_sums = [_]f64{0.0} ** num_workers;
+    var partial_sums: [num_workers]f64 = @splat(0.0);
     const chunk_size = (N + num_workers - 1) / num_workers;
 
     const Context = struct {

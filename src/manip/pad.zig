@@ -52,8 +52,8 @@ pub fn pad(
         .dtype = arr.dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
 

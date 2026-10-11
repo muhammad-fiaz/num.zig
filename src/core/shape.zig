@@ -69,7 +69,7 @@ pub const Slice = struct {
 
 /// Multidimensional shape descriptor.
 pub const Shape = struct {
-    dims: [MAX_RANK]usize = [_]usize{0} ** MAX_RANK,
+    dims: [MAX_RANK]usize = @splat(0),
     ndim: u8 = 0,
 
     /// Construct a Shape from a slice of dimension sizes.
@@ -84,7 +84,7 @@ pub const Shape = struct {
 
     /// Construct a scalar (rank 0) shape.
     pub fn scalar() Shape {
-        return .{ .dims = [_]usize{0} ** MAX_RANK, .ndim = 0 };
+        return .{ .dims = @splat(0), .ndim = 0 };
     }
 
     /// Construct a 1-D vector shape.
@@ -161,7 +161,7 @@ pub const Shape = struct {
 
 /// Multidimensional strides descriptor (in element counts).
 pub const Strides = struct {
-    values: [MAX_RANK]isize = [_]isize{0} ** MAX_RANK,
+    values: [MAX_RANK]isize = @splat(0),
     ndim: u8 = 0,
 
     /// Borrow strides slice.

@@ -16,7 +16,7 @@ pub const Prng = struct {
 
     /// Initializes a PRNG with a unique per-call seed without shared global state.
     /// Uses a thread-local counter mixed with a fixed base (no system-entropy
-    /// dependency, verified against Zig 0.16.0 `std`).
+    /// dependency, verified against Zig 0.17.0 `std`).
     pub fn initDefault() Prng {
         const S = struct {
             threadlocal var counter: u64 = 0;

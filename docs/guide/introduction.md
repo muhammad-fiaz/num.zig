@@ -1,6 +1,6 @@
 # Introduction to num.zig
 
-**num.zig** is a high-performance, strongly typed numerical computing and N-dimensional array library engineered entirely in **Zig 0.16.0**.
+**num.zig** is a high-performance, strongly typed numerical computing and N-dimensional array library engineered entirely in **Zig 0.17.0**.
 
 Designed from first principles for performance-critical systems, machine learning primitives, scientific simulations, and numerical analysis, `num.zig` pairs hardware-level control with a clean, expressive, Zig-idiomatic interface.
 
@@ -32,9 +32,7 @@ const std = @import("std");
 const num = @import("num");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = std.heap.page_allocator;
 
     // Create a 2x2 matrix from existing memory
     const a_data = [_]f64{ 1.0, 2.0, 3.0, 4.0 };

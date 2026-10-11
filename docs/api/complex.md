@@ -24,7 +24,7 @@ pub fn magnitude(a: Array) !Array; // |z| = hypot(re, im)
 pub fn phase(a: Array) !Array;     // arg(z) = atan2(im, re) in radians
 ```
 
-Complex element types reuse Zig 0.16.0 `std.math.Complex(f32)` (`c64`) and `std.math.Complex(f64)` (`c128`).
+Complex element types reuse Zig 0.17.0 `std.math.Complex(f32)` (`c64`) and `std.math.Complex(f64)` (`c128`).
 
 ---
 

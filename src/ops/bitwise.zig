@@ -34,7 +34,7 @@ fn bitWidth(comptime T: type) u6 {
 }
 
 inline fn applyBitwise(comptime T: type, comptime op: BitwiseOp, a: T, b: T) T {
-    const UT = std.meta.Int(.unsigned, @bitSizeOf(T));
+    const UT = @Int(.unsigned, @bitSizeOf(T));
     return switch (op) {
         .and_ => a & b,
         .or_ => a | b,
@@ -198,7 +198,7 @@ pub fn bitwiseNot(a: Array) (ShapeError || DTypeError || std.mem.Allocator.Error
 const UnaryCountOp = enum { popcount, clz, ctz };
 
 fn executeCountKernel(comptime T: type, comptime op: UnaryCountOp, a: Array, out: Array) !void {
-    const UT = std.meta.Int(.unsigned, @bitSizeOf(T));
+    const UT = @Int(.unsigned, @bitSizeOf(T));
     if (a.isContiguous()) {
         const sa = a.asConstSlice(T) catch unreachable;
         // out dtype matches input width unsigned? We keep same dtype family width: use same T for counts.

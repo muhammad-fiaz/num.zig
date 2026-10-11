@@ -36,8 +36,8 @@ pub fn sort(
     // Case 1: Global sort over entire array if axis is null
     if (options.axis == null) {
         if (arr.isContiguous()) {
-            inline for (std.meta.fields(DType)) |field| {
-                const tag: DType = @enumFromInt(field.value);
+            inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+                const tag: DType = @fromBackingInt(@intCast(field_value));
                 if (arr.dtype == tag) {
                     const T = tag.toType();
                     const slice = arr.asSlice(T) catch unreachable;
@@ -77,8 +77,8 @@ pub fn sort(
     if (line_len <= 1) return;
 
     if (arr.ndim == 1 and arr.isContiguous()) {
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (arr.dtype == tag) {
                 const T = tag.toType();
                 const slice = arr.asSlice(T) catch unreachable;

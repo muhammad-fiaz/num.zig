@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -143,14 +142,7 @@ pub fn build(b: *std.Build) void {
     const run_tests = b.addRunArtifact(tests);
     run_tests.has_side_effects = true;
     const test_step = b.step("test", "Run unit tests");
-
-    // Only run tests when target matches host; otherwise compile test artifact only.
-    if (target.result.os.tag == builtin.os.tag and target.result.cpu.arch == builtin.cpu.arch) {
-        test_step.dependOn(&run_tests.step);
-    } else {
-        const install_tests = b.addInstallArtifact(tests, .{});
-        test_step.dependOn(&install_tests.step);
-    }
+    test_step.dependOn(&run_tests.step);
 
     const test_check_step = b.step("test-check", "Compile unit tests without running (useful for cross-compilation)");
     test_check_step.dependOn(&tests.step);

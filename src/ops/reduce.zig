@@ -129,8 +129,8 @@ pub fn mean(arr: Array, options: ReduceOptions) (ShapeError || DTypeError || std
 
     const count_f: f64 = @floatFromInt(count_dim);
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (s.dtype == tag) {
             const T = tag.toType();
             const slice = s.asSlice(T) catch unreachable;
@@ -311,7 +311,7 @@ fn executeReduction(
     if (axis_opt == null) {
         // Global reduction
         const out_shape = if (keepDims) blk: {
-            const kd_dims = [_]usize{1} ** MAX_RANK;
+            const kd_dims: [MAX_RANK]usize = @splat(1);
             break :blk Shape{ .dims = kd_dims, .ndim = s.ndim };
         } else Shape.scalar();
 
@@ -320,8 +320,8 @@ fn executeReduction(
             .dtype = out_dtype,
         });
 
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (out_dtype == tag) {
                 const T = tag.toType();
                 const res = reduceAll(T, op, arr);
@@ -355,8 +355,8 @@ fn executeReduction(
         .dtype = out_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
             reduceAxis(T, op, arr, axis, out, keepDims);
@@ -476,7 +476,7 @@ fn executeStatReduction(
         }
     } else {
         out_shape = if (keepDims) blk: {
-            const kd_dims = [_]usize{1} ** MAX_RANK;
+            const kd_dims: [MAX_RANK]usize = @splat(1);
             break :blk Shape{ .dims = kd_dims, .ndim = s.ndim };
         } else Shape.scalar();
     }
@@ -575,7 +575,7 @@ fn executeArgReduction(
     if (axis_opt == null) {
         // Global argmin / argmax (flat index)
         const out_shape = if (keepDims) blk: {
-            const kd_dims = [_]usize{1} ** MAX_RANK;
+            const kd_dims: [MAX_RANK]usize = @splat(1);
             break :blk Shape{ .dims = kd_dims, .ndim = s.ndim };
         } else Shape.scalar();
 
@@ -679,8 +679,8 @@ fn executeCumulative(
         .dtype = out_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
             const out_ptr: [*]T = @ptrCast(@alignCast(out.data_ptr));
@@ -795,8 +795,8 @@ inline fn combineValues(comptime T: type, comptime op: ReduceOp, a: T, b: T) T {
 }
 
 fn readAndCast(comptime TargetT: type, arr: Array, offset: isize) TargetT {
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));

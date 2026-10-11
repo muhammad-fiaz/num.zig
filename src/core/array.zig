@@ -35,9 +35,9 @@ pub const Array = struct {
     /// Number of dimensions (0 for scalars, up to MAX_RANK).
     ndim: u8,
     /// Dimension sizes.
-    shape_dims: [MAX_RANK]usize = [_]usize{0} ** MAX_RANK,
+    shape_dims: [MAX_RANK]usize = @splat(0),
     /// Dimension strides (in element counts).
-    stride_vals: [MAX_RANK]isize = [_]isize{0} ** MAX_RANK,
+    stride_vals: [MAX_RANK]isize = @splat(0),
     /// Memory flags.
     flags: ArrayFlags = .{},
     /// Owning root buffer (non-null only if ownsData is true).
@@ -153,14 +153,14 @@ pub const Array = struct {
         var out_it = NdIterator.init(out.shape(), out.strides());
         while (it.next()) |entry| {
             const o = out_it.next().?;
-            inline for (std.meta.fields(DType)) |tfield| {
-                const ttag: DType = @enumFromInt(tfield.value);
+            inline for (@typeInfo(DType).@"enum".field_values) |tfield_value| {
+                const ttag: DType = @fromBackingInt(@intCast(tfield_value));
                 if (target == ttag) {
                     const T = ttag.toType();
                     const optr: [*]T = @ptrCast(@alignCast(out.data_ptr));
                     const dst_idx: usize = @intCast(o.offset);
-                    inline for (std.meta.fields(DType)) |sfield| {
-                        const stag: DType = @enumFromInt(sfield.value);
+                    inline for (@typeInfo(DType).@"enum".field_values) |sfield_value| {
+                        const stag: DType = @fromBackingInt(@intCast(sfield_value));
                         if (self.dtype == stag) {
                             const S = stag.toType();
                             const sptr: [*]const S = @ptrCast(@alignCast(self.data_ptr));
@@ -227,7 +227,7 @@ pub const Array = struct {
         } else if (self.ndim == 1) {
             return self.get(T, &.{0});
         } else {
-            return self.get(T, &([_]usize{0} ** 8)[0..self.ndim]);
+            return self.get(T, &(@as([8]usize, @splat(0)))[0..self.ndim]);
         }
     }
 
@@ -252,7 +252,7 @@ pub const Array = struct {
         } else if (self.ndim == 1) {
             try self.set(T, &.{0}, value);
         } else {
-            const zero_indices = [_]usize{0} ** 8;
+            const zero_indices: [8]usize = @splat(0);
             try self.set(T, zero_indices[0..self.ndim], value);
         }
     }
@@ -260,8 +260,8 @@ pub const Array = struct {
     /// Reads an element at `indices` and converts it to f64 regardless of internal dtype.
     pub fn getAsFloat(self: Array, indices: []const usize) IndexError!f64 {
         const offset = try self.elementOffset(indices);
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (self.dtype == tag) {
                 const SrcT = tag.toType();
                 const ptr: [*]const SrcT = @ptrCast(@alignCast(self.data_ptr));
@@ -285,8 +285,8 @@ pub const Array = struct {
     /// Sets an element at `indices` from an f64 value, casting to the array's dtype.
     pub fn setFromFloat(self: Array, indices: []const usize, val: f64) IndexError!void {
         const offset = try self.elementOffset(indices);
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (self.dtype == tag) {
                 const DstT = tag.toType();
                 const ptr: [*]DstT = @ptrCast(@alignCast(self.data_ptr));
@@ -309,8 +309,8 @@ pub const Array = struct {
     /// Reads an element at `indices` and converts it to i64 regardless of internal dtype.
     pub fn getAsInt(self: Array, indices: []const usize) IndexError!i64 {
         const offset = try self.elementOffset(indices);
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (self.dtype == tag) {
                 const SrcT = tag.toType();
                 const ptr: [*]const SrcT = @ptrCast(@alignCast(self.data_ptr));
@@ -334,8 +334,8 @@ pub const Array = struct {
     /// Sets an element at `indices` from an i64 value, casting to the array's dtype.
     pub fn setFromInt(self: Array, indices: []const usize, val: i64) IndexError!void {
         const offset = try self.elementOffset(indices);
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (self.dtype == tag) {
                 const DstT = tag.toType();
                 const ptr: [*]DstT = @ptrCast(@alignCast(self.data_ptr));
@@ -359,7 +359,7 @@ pub const Array = struct {
     pub fn itemAsFloat(self: Array) IndexError!f64 {
         if (self.ndim == 0) return self.getAsFloat(&.{});
         if (self.ndim == 1) return self.getAsFloat(&.{0});
-        const zeros_buf = [_]usize{0} ** 8;
+        const zeros_buf: [8]usize = @splat(0);
         return self.getAsFloat(zeros_buf[0..self.ndim]);
     }
 
@@ -367,7 +367,7 @@ pub const Array = struct {
     pub fn itemAsInt(self: Array) IndexError!i64 {
         if (self.ndim == 0) return self.getAsInt(&.{});
         if (self.ndim == 1) return self.getAsInt(&.{0});
-        const zeros_buf = [_]usize{0} ** 8;
+        const zeros_buf: [8]usize = @splat(0);
         return self.getAsInt(zeros_buf[0..self.ndim]);
     }
 
@@ -503,8 +503,8 @@ pub const Array = struct {
 
     /// Fills the array in-place with a constant scalar value.
     pub fn fill(self: *Array, comptime T: type, val: T) void {
-        inline for (std.meta.fields(DType)) |field| {
-            const tag: DType = @enumFromInt(field.value);
+        inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+            const tag: DType = @fromBackingInt(@intCast(field_value));
             if (self.dtype == tag) {
                 const DstT = tag.toType();
                 const cast_val: DstT = DType.castValue(DstT, T, val);
@@ -638,8 +638,8 @@ pub fn full(
         .order = order,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
             const slice = arr.asSlice(T) catch unreachable;
@@ -713,8 +713,8 @@ pub fn arange(
         break :blk d;
     };
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (resolved_dtype == tag) {
             const T = tag.toType();
 
@@ -790,8 +790,8 @@ pub fn linspace(
 
     if (num_val == 0) return arr;
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
             const slice = arr.asSlice(T) catch unreachable;
@@ -1037,8 +1037,8 @@ pub fn eye(
         .dtype = options.dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const T = tag.toType();
             const one_val: T = switch (@typeInfo(T)) {
@@ -1336,7 +1336,7 @@ test "rank coverage, strides, and strided assignment" {
     try std.testing.expectEqual(@as(usize, 16), r4.elementCount());
 
     // Maximum supported rank carries metadata without heap shape storage
-    var max_shape: [MAX_RANK]usize = [_]usize{1} ** MAX_RANK;
+    var max_shape: [MAX_RANK]usize = @splat(1);
     max_shape[0] = 2;
     var rmax = try zeros(allocator, .{ .shape = max_shape[0..], .dtype = .u8 });
     defer rmax.deinit();
@@ -1344,7 +1344,7 @@ test "rank coverage, strides, and strided assignment" {
     try std.testing.expectEqual(@as(usize, 2), rmax.elementCount());
 
     // Rank beyond the limit is rejected explicitly
-    var too_many: [MAX_RANK + 1]usize = [_]usize{1} ** (MAX_RANK + 1);
+    var too_many: [MAX_RANK + 1]usize = @splat(1);
     try std.testing.expectError(ShapeError.RankExceeded, zeros(allocator, .{ .shape = too_many[0..], .dtype = .f64 }));
 
     // Stepped slice assignment lands at strided offsets

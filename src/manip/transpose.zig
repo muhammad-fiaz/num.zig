@@ -25,7 +25,7 @@ pub fn transpose(
 
     if (options.axes) |perm| {
         if (perm.len != s.ndim) return ShapeError.AxisOutOfBounds;
-        var seen = [_]bool{false} ** MAX_RANK;
+        var seen: [MAX_RANK]bool = @splat(false);
 
         for (perm, 0..) |ax, i| {
             if (ax >= s.ndim or seen[ax]) return ShapeError.AxisOutOfBounds;

@@ -166,7 +166,7 @@ pub fn quantileWithOptions(
 
         const val = interpolateQuantile(buffer, q, options.method);
 
-        const kd_dims = [_]usize{1} ** MAX_RANK;
+        const kd_dims: [MAX_RANK]usize = @splat(1);
         const out_shape: []const usize = if (options.keepDims) kd_dims[0..arr.ndim] else &.{};
 
         var out = try empty(arr.allocator, .{
@@ -175,7 +175,7 @@ pub fn quantileWithOptions(
         });
         errdefer out.deinit();
 
-        const zero_coords = [_]usize{0} ** MAX_RANK;
+        const zero_coords: [MAX_RANK]usize = @splat(0);
         try out.set(f64, if (options.keepDims) zero_coords[0..arr.ndim] else &.{}, val);
         return out;
     }

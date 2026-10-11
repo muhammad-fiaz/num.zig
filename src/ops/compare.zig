@@ -43,8 +43,8 @@ pub fn compareOp(
         .dtype = .bool,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (common_dtype == tag) {
             const T = tag.toType();
             try executeCompareKernel(T, op, bc.a, bc.b, out);
@@ -148,8 +148,8 @@ inline fn applyScalarCompare(comptime T: type, comptime op: CompareOp, a: T, b: 
 }
 
 fn readScalar(comptime TargetT: type, arr: Array, offset: isize) TargetT {
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (arr.dtype == tag) {
             const SrcT = tag.toType();
             const ptr: [*]const SrcT = @ptrCast(@alignCast(arr.data_ptr));

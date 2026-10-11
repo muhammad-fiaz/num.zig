@@ -151,8 +151,8 @@ pub fn outer(
         .dtype = out_dtype,
     });
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
             const out_ptr: [*]T = @ptrCast(@alignCast(out.data_ptr));
@@ -185,8 +185,8 @@ pub fn outer(
 
 fn computeDot1D(a: Array, b: Array, out: Array, out_dtype: DType) !void {
     const K = a.shape_dims[0];
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
 
@@ -250,8 +250,8 @@ fn computeMatmul2D(
     K: usize,
     N: usize,
 ) !void {
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
 
@@ -359,8 +359,8 @@ fn computeBatchedMatmul(a: Array, b: Array, out_dtype: DType) !Array {
     const NdIterator = @import("../core/iterator.zig").NdIterator;
     var batch_it = NdIterator.init(batch_out, Strides.fromShape(batch_out, .c));
 
-    inline for (std.meta.fields(DType)) |field| {
-        const tag: DType = @enumFromInt(field.value);
+    inline for (@typeInfo(DType).@"enum".field_values) |field_value| {
+        const tag: DType = @fromBackingInt(@intCast(field_value));
         if (out_dtype == tag) {
             const T = tag.toType();
 

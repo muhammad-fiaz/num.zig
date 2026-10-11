@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to Num.Zig! We welcome contributions from the community to help make this library better.
 
+> **Compiler requirement:** num.zig v0.0.4 targets **Zig 0.17.0** as its minimum supported compiler version. Library v0.0.3 remains the Zig 0.16.0 compatibility line.
+
 ## How to Contribute
 
 1.  **Fork the Repository**: Click the "Fork" button on the top right of the repository page.
@@ -15,14 +17,21 @@ Thank you for your interest in contributing to Num.Zig! We welcome contributions
     git checkout -b feature/your-feature-name
     ```
 4.  **Make Changes**: Implement your feature or fix a bug.
-5.  **Run Tests**: Ensure all tests pass.
+5.  **Run Tests**: Ensure all tests pass (requires Zig 0.17.0).
     ```bash
     zig build test
     ```
 6.  **Run Examples**: Ensure examples run correctly.
     ```bash
-    zig build run-basics
-    # ... run other examples
+    zig build run-all-examples
+    ```
+    **Run Benchmarks**:
+    ```bash
+    zig build bench
+    ```
+    **Check Formatting**:
+    ```bash
+    zig fmt --check src/ bench/ examples/ build.zig
     ```
 7.  **Commit Changes**:
     ```bash

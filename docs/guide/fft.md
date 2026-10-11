@@ -1,6 +1,6 @@
 # Fast Fourier Transform (`num.fft`)
 
-`num.zig` implements a Fast Fourier Transform engine with 1D transforms along a selected axis, 2D transforms over the last two axes, frequency helpers, and shift utilities. Complex element types reuse Zig 0.16.0 `std.math.Complex` (`num.fft.Complex64` / `num.fft.Complex128`).
+`num.zig` implements a Fast Fourier Transform engine with 1D transforms along a selected axis, 2D transforms over the last two axes, frequency helpers, and shift utilities. Complex element types reuse Zig 0.17.0 `std.math.Complex` (`num.fft.Complex64` / `num.fft.Complex128`).
 
 ---
 
